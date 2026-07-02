@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@langfuse/openai": "^5.9.1",
+    "@langfuse/otel": "^5.9.1",
+    "@opentelemetry/sdk-node": "^0.220.0",
     "@supabase/supabase-js": "^2.110.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.23.0",
