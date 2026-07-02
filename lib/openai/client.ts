@@ -15,6 +15,7 @@ export function getOpenAIClient() {
 
   return observeOpenAI(client, {
     traceName: "timecity-scene-generation",
+    generationName: "timecity-scene-generation",
     tags: ["timecity", "scene-generation"],
   });
 }
