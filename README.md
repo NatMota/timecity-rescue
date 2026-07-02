@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TimeCity Rescue
 
-## Getting Started
+TimeCity Rescue is a classroom-safe AI literacy prototype for 9-10 year olds. Pupils join a fixed Episode 1 adventure, make multiple-choice decisions, and learn that an AI agent needs a clear goal, useful inputs, rules, outputs, and human oversight.
 
-First, run the development server:
+The product is intentionally sandboxed:
+
+- Pupils do not type free-text prompts or chat with AI.
+- The story graph, rooms, characters, choices, and evaluation keys are fixed.
+- Teachers can start, pause, monitor, assist, skip, or reset pupils.
+- Supabase persistence is optional locally but recommended for Vercel.
+- OpenAI scene generation is optional; deterministic fallback scenes are always available.
+
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Teacher dashboard: `http://localhost:3000/teacher`
+- Student demo join: `http://localhost:3000/play/DEMO`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment
 
-## Learn More
+Copy `.env.example` to `.env.local` for local development. With no env vars, the app runs in memory-only demo mode.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Supabase
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The schema is in `supabase/migrations/001_init.sql` and the Episode 1 seed data is in `supabase/seed/episode1_nodes.sql`.
 
-## Deploy on Vercel
+For a linked Supabase project:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+supabase db push
+supabase db query --linked --file supabase/seed/episode1_nodes.sql
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The current deployed runtime persists classroom state in `session_snapshots`. The normalized curriculum tables are included for future reporting, authoring, and evidence capture.
+
+## Verification
+
+```bash
+pnpm lint
+pnpm build
+```
+
+Expected checks:
+
+- Teacher can create a session and copy a join link.
+- Student can join with a preset codename, language, and avatar colour.
+- Student choices advance through Episode 1 without free-text input.
+- Teacher dashboard refreshes progress and can override a selected pupil.
+- Completed pupils can generate a mission goal card.
+
+## Assets
+
+Room graphics are stored in `public/assets/rooms`. Source dumped/generated assets live one level up in `../timecity_graphics_dump`.
