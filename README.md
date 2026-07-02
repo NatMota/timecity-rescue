@@ -37,8 +37,14 @@ OPENAI_MODEL=gpt-4.1-mini
 LANGFUSE_BASE_URL=
 LANGFUSE_PUBLIC_KEY=
 LANGFUSE_SECRET_KEY=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/teacher
 NEXT_PUBLIC_DEMO_MODE=true
 ```
+
+Clerk is required for the deployed teacher dashboard. Pupil routes under `/play/*` stay public so learners can join a teacher-led session without accounts. Account creation is not exposed in the app; create or invite teacher accounts from Clerk.
 
 ## Supabase
 

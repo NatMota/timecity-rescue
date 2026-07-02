@@ -120,6 +120,13 @@ a {
   padding: 56px 0;
 }
 
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
 .home-hero {
   display: grid;
   min-height: 560px;
@@ -246,6 +253,19 @@ a {
 
 .teacher-shell {
   padding: 28px 0 48px;
+}
+
+.teacher-auth-bar {
+  display: flex;
+  width: min(1180px, calc(100% - 32px));
+  min-height: 48px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 16px auto 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
 }
 
 .teacher-hero,

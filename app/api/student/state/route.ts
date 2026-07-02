@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { ensureSession, findStudent, incrementStudentSignal } from "@/lib/game/sessionStore";
 import { getFallbackScene } from "@/lib/game/fallbackScenes";
@@ -7,6 +8,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sessionCode = String(searchParams.get("session_code") || "").toUpperCase();
   const studentId = searchParams.get("student_id") || "";
+  if (!studentId) {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const session = await ensureSession(sessionCode);
   const student = studentId ? (await findStudent(session.session_code, studentId)).student : undefined;
   const scene = student ? getFallbackScene(student.current_node_key, student.language) : undefined;
