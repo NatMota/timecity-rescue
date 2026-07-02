@@ -1,12 +1,14 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isProtectedRoute = createRouteMatcher([
-  "/teacher(.*)",
-  "/api/session/(.*)",
-]);
+const isProtectedPage = createRouteMatcher(["/teacher(.*)"]);
+const isProtectedApi = createRouteMatcher(["/api/session/(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
+  if (isProtectedPage(req)) {
+    await auth.protect({ unauthenticatedUrl: "/sign-in" });
+  }
+
+  if (isProtectedApi(req)) {
     await auth.protect();
   }
 });
