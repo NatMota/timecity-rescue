@@ -5,7 +5,7 @@ const isProtectedApi = createRouteMatcher(["/api/session/(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedPage(req)) {
-    await auth.protect({ unauthenticatedUrl: "/sign-in" });
+    await auth.protect({ unauthenticatedUrl: new URL("/sign-in", req.url).toString() });
   }
 
   if (isProtectedApi(req)) {
