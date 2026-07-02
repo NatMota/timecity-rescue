@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PauseCircle, Printer, ShieldCheck } from "lucide-react";
 import { CharacterSprite } from "@/components/shared/CharacterSprite";
 import { RoomBackground } from "@/components/shared/RoomBackground";
@@ -26,6 +26,8 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [startedAt, setStartedAt] = useState(Date.now());
+  const firstChoiceAtRef = useRef<number | null>(null);
+  const supportCountsRef = useRef({ clue_count: 0, read_again_count: 0 });
 
   const sessionCode = useMemo(() => initialSessionCode.toUpperCase(), [initialSessionCode]);
 
@@ -49,32 +51,66 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
     const data = await response.json();
     setStudent(data.student);
     setScene(data.scene);
+    resetSceneTelemetry();
+  }
+
+  function resetSceneTelemetry() {
     setStartedAt(Date.now());
+    firstChoiceAtRef.current = null;
+    supportCountsRef.current = { clue_count: 0, read_again_count: 0 };
+  }
+
+  function markFirstChoicePreview() {
+    firstChoiceAtRef.current = firstChoiceAtRef.current ?? Date.now();
   }
 
   async function submit(choiceId: string) {
-    if (!student) return;
+    if (!student || !scene) return;
     setBusy(true);
+    const submittedAt = Date.now();
+    const sceneElapsedMs = submittedAt - startedAt;
     const response = await fetch("/api/choice/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_code: sessionCode, student_id: student.id, choice_id: choiceId, response_ms: Date.now() - startedAt }),
+      body: JSON.stringify({
+        session_code: sessionCode,
+        student_id: student.id,
+        node_key: scene.node_key,
+        room_slug: scene.room_slug,
+        choice_id: choiceId,
+        response_ms: sceneElapsedMs,
+        scene_elapsed_ms: sceneElapsedMs,
+        first_choice_ms: (firstChoiceAtRef.current ?? submittedAt) - startedAt,
+        clue_count: supportCountsRef.current.clue_count,
+        read_again_count: supportCountsRef.current.read_again_count,
+      }),
     });
     const data = await response.json();
     setStudent(data.student);
     setScene(data.scene);
     setConsequence(data.consequence);
     setSupportText("");
-    setStartedAt(Date.now());
+    resetSceneTelemetry();
     setBusy(false);
   }
 
   async function signal(type: "clue_count" | "read_again_count") {
     if (!student || !scene) return;
+    supportCountsRef.current = {
+      ...supportCountsRef.current,
+      [type]: supportCountsRef.current[type] + 1,
+    };
     await fetch("/api/student/state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_code: sessionCode, student_id: student.id, signal: type }),
+      body: JSON.stringify({
+        session_code: sessionCode,
+        student_id: student.id,
+        signal: type,
+        node_key: scene.node_key,
+        room_slug: scene.room_slug,
+        scene_elapsed_ms: Date.now() - startedAt,
+      }),
     });
     setSupportText(type === "clue_count" ? scene.clue?.text || "Check the clue that changes the system." : scene.dialogue.read_again_text);
     await refreshState(student.id);
@@ -153,7 +189,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         <div className="mission-panel">
           <DialoguePanel scene={scene} />
           {consequence ? <p className="consequence">{consequence}</p> : null}
-          <ChoiceButtons choices={scene.choices} disabled={busy} onChoose={submit} />
+          <ChoiceButtons choices={scene.choices} disabled={busy} onPreview={markFirstChoicePreview} onChoose={submit} />
           <div className="mission-tools">
             <BackpackDrawer open={backpackOpen} onToggle={() => setBackpackOpen((value) => !value)} />
             <ClueButton

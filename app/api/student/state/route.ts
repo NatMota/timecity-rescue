@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureSession, findStudent, incrementStudentSignal } from "@/lib/game/sessionStore";
 import { getFallbackScene } from "@/lib/game/fallbackScenes";
+import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +16,23 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const signal = body.signal === "read_again_count" ? "read_again_count" : "clue_count";
-  const result = await incrementStudentSignal(String(body.session_code || "").toUpperCase(), String(body.student_id || ""), signal);
+  const sessionCode = String(body.session_code || "").toUpperCase();
+  const studentId = String(body.student_id || "");
+  const result = await incrementStudentSignal(sessionCode, studentId, signal);
   if (!result) return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  await logClickstreamEvent({
+    sessionCode,
+    studentId,
+    eventType: signal === "clue_count" ? "support_clue" : "support_read_again",
+    route: "/api/student/state",
+    nodeKey: String(body.node_key || result.student.current_node_key || ""),
+    roomSlug: String(body.room_slug || result.student.current_room_slug || ""),
+    sceneElapsedMs: Number(body.scene_elapsed_ms),
+    clueCount: result.student.clue_count,
+    readAgainCount: result.student.read_again_count,
+    metadata: {
+      risk_flags: result.student.risk_flags,
+    },
+  });
   return NextResponse.json(result);
 }

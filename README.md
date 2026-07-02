@@ -60,7 +60,7 @@ export SUPABASE_DB_PASSWORD=...
 ./scripts/provision-supabase.sh
 ```
 
-The current deployed runtime persists classroom state in `session_snapshots`. The normalized curriculum tables are included for future reporting, authoring, and evidence capture.
+The current deployed runtime persists classroom state in `session_snapshots`. It also writes append-only server-side telemetry to `clickstream_events` and `llm_generation_events`. The normalized curriculum tables are included for future reporting, authoring, and evidence capture.
 
 ## Verification
 

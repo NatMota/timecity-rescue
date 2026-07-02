@@ -8,6 +8,6 @@ export async function POST(request: Request) {
   const studentId = String(body.student_id || "");
   const { student } = await findStudent(sessionCode, studentId);
   if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
-  const scene = await generateScene(student.current_node_key, student.language, student);
+  const scene = await generateScene(sessionCode, student.current_node_key, student.language, student);
   return NextResponse.json({ scene });
 }

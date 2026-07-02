@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { joinSession } from "@/lib/game/sessionStore";
+import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -11,5 +12,17 @@ export async function POST(request: Request) {
     String(body.avatar_color || "blue"),
     body.language === "zh" ? "zh" : "en",
   );
+  await logClickstreamEvent({
+    sessionCode: code,
+    studentId: result.student.id,
+    eventType: "student_join",
+    route: "/api/student/join",
+    nodeKey: result.student.current_node_key,
+    roomSlug: result.student.current_room_slug,
+    metadata: {
+      language: result.student.language,
+      avatar_color: result.student.avatar_color,
+    },
+  });
   return NextResponse.json(result);
 }
