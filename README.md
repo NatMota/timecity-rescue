@@ -46,6 +46,15 @@ supabase db push
 supabase db query --linked --file supabase/seed/episode1_nodes.sql
 ```
 
+To create the project from the CLI once a Supabase access token is available:
+
+```bash
+export SUPABASE_ACCESS_TOKEN=...
+export SUPABASE_ORG_ID=...
+export SUPABASE_DB_PASSWORD=...
+./scripts/provision-supabase.sh
+```
+
 The current deployed runtime persists classroom state in `session_snapshots`. The normalized curriculum tables are included for future reporting, authoring, and evidence capture.
 
 ## Verification
