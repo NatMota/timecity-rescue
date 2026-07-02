@@ -608,13 +608,20 @@ a {
 }
 
 .character-face {
+  position: relative;
   display: grid;
   width: 86px;
   height: 86px;
   flex: 0 0 86px;
   place-items: center;
+  overflow: hidden;
   border-radius: 10px;
   color: #fff;
+}
+
+.character-art {
+  object-fit: cover;
+  object-position: center 18%;
 }
 
 .character-card strong,

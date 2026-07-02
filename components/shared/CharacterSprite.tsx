@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { Bot, GraduationCap, Sparkles } from "lucide-react";
+import Image from "next/image";
 import type { CharacterSlug, CharacterState } from "@/lib/game/types";
 
 const config = {
@@ -11,10 +12,12 @@ const config = {
 export function CharacterSprite({ character, state }: { character: CharacterSlug; state: CharacterState }) {
   const item = config[character];
   const Icon = item.icon;
+  const image = getCharacterImage(character, state);
+
   return (
     <div className={clsx("character-card", `character-${item.tone}`)} aria-label={`${item.label}, ${state}`}>
       <div className="character-face">
-        <Icon size={46} strokeWidth={2.2} />
+        {image ? <Image src={image} alt="" fill sizes="86px" className="character-art" /> : <Icon size={46} strokeWidth={2.2} />}
       </div>
       <div>
         <strong>{item.label}</strong>
@@ -22,4 +25,9 @@ export function CharacterSprite({ character, state }: { character: CharacterSlug
       </div>
     </div>
   );
+}
+
+function getCharacterImage(character: CharacterSlug, state: CharacterState) {
+  if (character !== "ada") return null;
+  return state === "thinking" || state === "uncertain" ? "/assets/characters/ada-thinking.png" : "/assets/characters/ada-neutral.png";
 }
