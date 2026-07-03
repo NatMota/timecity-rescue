@@ -268,6 +268,228 @@ a {
   font-weight: 800;
 }
 
+.teacher-auth-bar a {
+  color: var(--primary);
+}
+
+.team-shell {
+  width: min(1240px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.team-header {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.team-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+.team-header p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.team-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.team-alert {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  border: 1px solid #f2b8c5;
+  border-radius: 10px;
+  background: #fff1f4;
+  color: #7d1230;
+  padding: 14px;
+}
+
+.team-alert p {
+  margin: 4px 0 0;
+}
+
+.team-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.team-metric-card,
+.team-panel {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 30px rgba(18, 32, 51, 0.08);
+}
+
+.team-metric-card {
+  display: grid;
+  gap: 8px;
+  min-height: 150px;
+  padding: 16px;
+}
+
+.team-metric-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e6efff;
+  color: var(--primary);
+}
+
+.team-metric-card span,
+.team-metric-card small,
+.team-table span,
+.activity-list small {
+  color: var(--muted);
+}
+
+.team-metric-card span {
+  font-weight: 800;
+}
+
+.team-metric-card strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.team-grid.wide-left {
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+}
+
+.team-panel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.team-panel h2 {
+  margin: 4px 0 0;
+}
+
+.team-table-wrap {
+  overflow-x: auto;
+}
+
+.team-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.team-table th,
+.team-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.team-table th {
+  color: var(--primary-dark);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.team-table td strong,
+.team-table td span {
+  display: block;
+}
+
+.status-pill {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 30px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #eef2f6;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.status-started {
+  background: #dff7ef;
+  color: #0d5b3d;
+}
+
+.status-paused {
+  background: #fff3bd;
+  color: #725100;
+}
+
+.progress-cell {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 46px;
+  gap: 10px;
+  align-items: center;
+}
+
+.progress-track {
+  display: block;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e4edf7;
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--primary));
+}
+
+.signal-list,
+.event-count-list,
+.activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.signal-list div,
+.event-count-list div,
+.activity-list div {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  background: var(--surface-strong);
+  padding: 12px;
+}
+
+.signal-list div,
+.event-count-list div {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.signal-list span,
+.event-count-list span,
+.activity-list span {
+  font-weight: 800;
+}
+
 .teacher-hero,
 .student-topbar {
   display: flex;
@@ -772,16 +994,20 @@ a {
 @media (max-width: 900px) {
   .home-hero,
   .teacher-grid,
+  .team-grid,
+  .team-grid.wide-left,
   .scene-layout,
   .session-controls {
     grid-template-columns: 1fr;
   }
 
-  .principle-grid {
+  .principle-grid,
+  .team-metric-grid {
     grid-template-columns: 1fr;
   }
 
   .teacher-hero,
+  .team-header,
   .student-topbar,
   .student-footer {
     align-items: stretch;
