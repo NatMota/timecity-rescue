@@ -139,7 +139,7 @@ export function submitChoice(sessionCodeValue: string, studentId: string, choice
   const completed = nextNodeKey === "COMPLETE";
   const updated: StudentRecord = recompute({
     ...student,
-    current_node_key: completed ? "H1_N16" : nextNodeKey,
+    current_node_key: completed ? "H1_N24" : nextNodeKey,
     current_room_slug: completed ? "future_agent_lab" : NODE_BY_KEY[nextNodeKey]?.room_slug ?? student.current_room_slug,
     badge_progress: completed ? 100 : badgeProgressForNode(nextNodeKey),
     correct_count: student.correct_count + (correctish ? 1 : 0),
@@ -187,7 +187,7 @@ export function overrideStudent(sessionCodeValue: string, studentId: string, act
   let nextNode = student.current_node_key;
   if (action === "skip") {
     nextNode = NODE_BY_KEY[student.current_node_key]?.evaluation_key.next_node_if_best ?? "H1_N02";
-    if (nextNode === "COMPLETE") nextNode = "H1_N16";
+    if (nextNode === "COMPLETE") nextNode = "H1_N24";
   }
   if (action === "reset") nextNode = FIRST_NODE_KEY;
   const updated = recompute({
