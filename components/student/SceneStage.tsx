@@ -53,8 +53,14 @@ const uiText = {
     defaultClue: "Check the clue that changes the system.",
     backpack: {
       button: "Backpack",
-      item: "Mission Compass",
-      description: "Finds goal, input, rule and output.",
+      items: [
+        { slug: "logic_lens", item: "Logic Lens", description: "Reveals hidden rules." },
+        { slug: "data_slate", item: "Data Slate", description: "Stores clean inputs and outputs." },
+        { slug: "debug_wrench", item: "Debug Wrench", description: "Inspects loops and broken rules." },
+        { slug: "prompt_card", item: "Prompt Card", description: "Makes instructions clearer." },
+        { slug: "agent_blueprint", item: "Agent Blueprint", description: "Assembles the final helper agent." },
+        { slug: "safety_seal", item: "Safety Seal", description: "Adds a human-check guardrail." },
+      ],
     },
   },
   zh: {
@@ -84,8 +90,14 @@ const uiText = {
     defaultClue: "检查会改变系统的线索。",
     backpack: {
       button: "背包",
-      item: "任务指南针",
-      description: "寻找目标、输入、规则和输出。",
+      items: [
+        { slug: "logic_lens", item: "逻辑镜片", description: "显示隐藏规则。" },
+        { slug: "data_slate", item: "数据板", description: "保存干净的输入和输出。" },
+        { slug: "debug_wrench", item: "调试扳手", description: "检查循环和错误规则。" },
+        { slug: "prompt_card", item: "提示卡", description: "让指令更清楚。" },
+        { slug: "agent_blueprint", item: "智能体蓝图", description: "组装最终的助手智能体。" },
+        { slug: "safety_seal", item: "安全印章", description: "加入人工检查护栏。" },
+      ],
     },
   },
 } satisfies Record<Language, Record<string, unknown>>;
@@ -403,7 +415,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         <section className="mission-panel mission-panel-overlay">
           {student.badge_progress >= 100 ? (
             <div className="completion-panel">
-              <p className="eyebrow">Goal Badge</p>
+              <p className="eyebrow">Agent Badge</p>
               <h2>{language === "zh" ? "任务完成" : "Mission Complete"}</h2>
               <p>
                 {language === "zh"

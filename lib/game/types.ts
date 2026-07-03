@@ -146,5 +146,5 @@ export type MissionGoalCard = {
   expectedOutput: string;
   shouldNotDo: string;
   checkedBeforeActing: string;
-  badgeEarned: "Goal Badge";
+  badgeEarned: "Goal Badge" | "Route Badge" | "Data Badge" | "Debug Badge" | "Agent Badge";
 };

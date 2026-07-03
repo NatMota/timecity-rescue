@@ -6,7 +6,7 @@ export function missionGoalCardHtml(name: string) {
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>${card.chronoCadetName} - Mission Goal Card</title>
+    <title>${card.chronoCadetName} - Agent Builder Passport</title>
     <style>
       body { font-family: Arial, sans-serif; background: #f4f7fb; color: #102033; padding: 32px; }
       main { max-width: 760px; margin: 0 auto; background: white; border: 3px solid #33a6a6; border-radius: 18px; padding: 32px; }
@@ -21,18 +21,18 @@ export function missionGoalCardHtml(name: string) {
   </head>
   <body>
     <main>
-      <h1>Mission Goal Card</h1>
+      <h1>Agent Builder Passport</h1>
       <h2>${card.chronoCadetName} earned the ${card.badgeEarned}</h2>
       <dl>
         <dt>Mission</dt><dd>${card.mission}</dd>
-        <dt>COG-9's goal</dt><dd>${card.cog9Goal}</dd>
+        <dt>Agent goal</dt><dd>${card.cog9Goal}</dd>
         <dt>Important input</dt><dd>${card.importantInput}</dd>
         <dt>Safe rule</dt><dd>${card.safeRule}</dd>
         <dt>Expected output</dt><dd>${card.expectedOutput}</dd>
         <dt>AI should not</dt><dd>${card.shouldNotDo}</dd>
         <dt>I checked</dt><dd>${card.checkedBeforeActing}</dd>
       </dl>
-      <button onclick="window.print()">Print card</button>
+      <button onclick="window.print()">Print passport</button>
     </main>
   </body>
 </html>`;
