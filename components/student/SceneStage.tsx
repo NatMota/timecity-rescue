@@ -1,11 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, HelpCircle, Map, Play, Printer, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowLeft, Play, Printer, ShieldCheck, XCircle } from "lucide-react";
 import { RoomBackground } from "@/components/shared/RoomBackground";
 import { SceneCharacterLayer } from "@/components/shared/SceneCharacterLayer";
-import { BadgeRibbon } from "./BadgeRibbon";
-import { BackpackDrawer } from "./BackpackDrawer";
 import { ChoiceButtons } from "./ChoiceButtons";
 import { ClueButton } from "./ClueButton";
 import { LanguageToggle } from "./LanguageToggle";
@@ -20,12 +18,8 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
   if (game.screen !== "mission" || !student || !scene) {
     if (game.screen === "loading") {
       return (
-        <main className="student-splash">
-          <Image src="/assets/backgrounds/splash-screen.png" alt="" fill priority sizes="100vw" className="student-splash-art" />
-          <section className="loading-panel" aria-live="polite">
-            <p className="eyebrow">TimeCity Rescue</p>
-            <h1>{copy.loading}</h1>
-          </section>
+        <main className="loading-screen" aria-label="Loading">
+          <span className="loading-spinner" aria-hidden="true" />
         </main>
       );
     }
@@ -65,7 +59,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
             <div className="join-options">
               <div>
                 <span className="option-label">{copy.avatar}</span>
-                <p className="menu-hint">{copy.avatarLead}</p>
+                {copy.avatarLead ? <p className="menu-hint">{copy.avatarLead}</p> : null}
               </div>
             </div>
             <div className="avatar-grid">
@@ -104,7 +98,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
                 <p className="eyebrow">{copy.introSpeaker}</p>
                 <p>{intro.dialogue}</p>
                 <button type="button" className="primary-action" onClick={intro.continue}>
-                  {copy.continue}
+                  {copy.begin}
                 </button>
               </div>
             ) : null}
@@ -130,14 +124,6 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
     <main className="student-experience">
       <RoomBackground roomSlug={scene.room_slug} />
       <div className="scene-scrim" />
-      <header className="student-topbar">
-        <div>
-          <p className="eyebrow">{copy.episode}</p>
-          <h1>TimeCity Rescue</h1>
-        </div>
-        <BadgeRibbon progress={student.badge_progress} />
-        <LanguageToggle language={language} onChange={mission.changeLanguage} />
-      </header>
 
       <SceneCharacterLayer character={scene.character} state={scene.character_state} phase={mission.characterPhase} />
 
@@ -147,6 +133,27 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
           <p>{scene.dialogue.text}</p>
           <button type="button" className="primary-action" onClick={mission.continueDialogue}>
             {copy.continue}
+          </button>
+        </section>
+      ) : null}
+
+      {mission.showExploration && mission.explorationSurface ? (
+        <section className="exploration-panel" aria-live="polite">
+          <p className="eyebrow">{mission.explorationSurface.title}</p>
+          <p className="exploration-question">
+            <strong>{mission.explorationSurface.speakerName}</strong>
+            {mission.explorationSurface.text}
+          </p>
+          <div className="exploration-question-actions" role="group" aria-label="Ask the character">
+            {mission.explorationSurface.questions.map((question) => (
+              <button key={question.id} type="button" onClick={() => mission.explorationSurface?.onAsk(question)}>
+                {question.question}
+              </button>
+            ))}
+          </div>
+          <p className="exploration-answer">{mission.explorationSurface.answer}</p>
+          <button type="button" className="primary-action" onClick={mission.explorationSurface.onReady}>
+            {mission.explorationSurface.readyLabel}
           </button>
         </section>
       ) : null}
@@ -169,12 +176,20 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
               <p>{mission.choiceSurface.completion.body}</p>
             </div>
           ) : mission.choiceSurface.main ? (
-            <ChoiceButtons
-              choices={mission.choiceSurface.main.choices}
-              disabled={mission.choiceSurface.main.disabled}
-              onPreview={mission.choiceSurface.main.onPreview}
-              onChoose={mission.choiceSurface.main.onChoose}
-            />
+            <>
+              {mission.choiceSurface.prompt ? (
+                <div className="choice-question-panel">
+                  <p className="eyebrow">{mission.choiceSurface.prompt.speakerName}</p>
+                  <p>{mission.choiceSurface.prompt.text}</p>
+                </div>
+              ) : null}
+              <ChoiceButtons
+                choices={mission.choiceSurface.main.choices}
+                disabled={mission.choiceSurface.main.disabled}
+                onPreview={mission.choiceSurface.main.onPreview}
+                onChoose={mission.choiceSurface.main.onChoose}
+              />
+            </>
           ) : null}
           {mission.choiceSurface.sideQuest ? (
             <SideQuestPanel
@@ -207,52 +222,17 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         </section>
       ) : null}
 
-      {mission.mapSurface?.open ? (
-        <aside className="map-overlay" aria-label={mission.mapSurface.label}>
-          <div className="map-panel">
-            <div className="map-panel-heading">
-              <p className="eyebrow">{mission.mapSurface.label}</p>
-              <button type="button" className="quiet-button" onClick={mission.mapSurface.close}>
-                <XCircle size={18} />
-                {mission.mapSurface.closeLabel}
-              </button>
-            </div>
-            <ol>
-              {mission.mapSurface.stops.map((stop) => (
-                <li key={stop.room} className={stop.current ? "is-current" : ""}>
-                  <span>{stop.title}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </aside>
-      ) : null}
-
       <footer className="student-footer">
         <div className="student-nav-actions">
-          <button type="button" className="quiet-button" onClick={mission.navigation.exit.onSelect}>
+          <button type="button" className="quiet-button mission-exit-button" onClick={mission.navigation.exit.onSelect}>
             <XCircle size={18} />
             {mission.navigation.exit.label}
           </button>
-          <button type="button" className="quiet-button" onClick={mission.navigation.restart.onSelect}>
-            <RotateCcw size={18} />
+          <button type="button" className="quiet-button mission-back-button" onClick={mission.navigation.restart.onSelect}>
+            <ArrowLeft size={18} />
             {mission.navigation.restart.label}
           </button>
-          <button type="button" className="quiet-button" onClick={mission.navigation.map.onSelect}>
-            <Map size={18} />
-            {mission.navigation.map.label}
-          </button>
-          <BackpackDrawer
-            open={mission.navigation.backpack.open}
-            labels={mission.navigation.backpack.labels}
-            onToggle={mission.navigation.backpack.onToggle}
-          />
-          <button type="button" className="quiet-button" onClick={mission.navigation.askCharacter.onSelect}>
-            <HelpCircle size={18} />
-            {mission.navigation.askCharacter.label}
-          </button>
         </div>
-        <p>{mission.navigation.footer}</p>
       </footer>
     </main>
   );

@@ -144,7 +144,7 @@ export function updateSessionStatus(code: string, status: ClassSession["status"]
 
 export function joinDemoSession(code: string, display_name: string, avatar_color: string, language: Language) {
   const session = getDemoSession(code) ?? createDemoSession(language, code);
-  const student = recompute(makeStudent(display_name || "ChronoCadet Blue", avatar_color || "blue", language));
+  const student = recompute(makeStudent(display_name || "Blue Cadet", avatar_color || "blue", language));
   session.students = [student, ...session.students.filter((item) => item.display_name !== student.display_name)];
   session.updated_at = now();
   store.set(session.session_code, session);

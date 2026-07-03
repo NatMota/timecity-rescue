@@ -15,6 +15,12 @@ type SideQuestResult = {
   correct: boolean;
 };
 
+type ExplorationQuestion = {
+  id: string;
+  question: string;
+  answer: string;
+};
+
 export function useStudentMissionRuntime({
   sessionCode,
   displayName,
@@ -43,6 +49,7 @@ export function useStudentMissionRuntime({
   const [busy, setBusy] = useState(false);
   const [completedSideQuestIds, setCompletedSideQuestIds] = useState<string[]>([]);
   const [sideQuestResult, setSideQuestResult] = useState<SideQuestResult | null>(null);
+  const [explorationAnswer, setExplorationAnswer] = useState("");
   const [startedAt, setStartedAt] = useState(Date.now());
   const firstChoiceAtRef = useRef<number | null>(null);
   const supportCountsRef = useRef({ clue_count: 0, read_again_count: 0 });
@@ -98,6 +105,7 @@ export function useStudentMissionRuntime({
 
   function resetSceneTelemetry() {
     setStartedAt(Date.now());
+    setExplorationAnswer("");
     firstChoiceAtRef.current = null;
     supportCountsRef.current = { clue_count: 0, read_again_count: 0 };
   }
@@ -132,6 +140,7 @@ export function useStudentMissionRuntime({
     setPendingScene(data.scene);
     setChoiceFeedback({ text: data.consequence, completed: Boolean(data.completed) });
     setSupportText("");
+    setExplorationAnswer("");
     setSideQuestResult(null);
     playback.setPhase("feedback");
     setBusy(false);
@@ -144,9 +153,36 @@ export function useStudentMissionRuntime({
     setPendingStudent(null);
     setPendingScene(null);
     setChoiceFeedback(null);
+    setExplorationAnswer("");
     setSideQuestResult(null);
     resetSceneTelemetry();
+    if (pendingStudent.memento) {
+      playback.setPhase("choices");
+      return;
+    }
     playback.replaySpeech();
+  }
+
+  async function askExplorationQuestion(question: ExplorationQuestion) {
+    if (!scene) return;
+    setExplorationAnswer(question.answer);
+    if (!student) return;
+    await fetch("/api/student/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_code: sessionCode,
+        student_id: student.id,
+        event_type: "exploration_question",
+        node_key: scene.node_key,
+        room_slug: scene.room_slug,
+        scene_elapsed_ms: Date.now() - startedAt,
+        metadata: {
+          question_id: question.id,
+          question: question.question,
+        },
+      }),
+    });
   }
 
   async function signal(type: "clue_count" | "read_again_count") {
@@ -235,6 +271,7 @@ export function useStudentMissionRuntime({
     setPendingScene(null);
     setChoiceFeedback(null);
     setSupportText("");
+    setExplorationAnswer("");
     setBackpackOpen(false);
     setMapOpen(false);
     setCompletedSideQuestIds([]);
@@ -245,6 +282,23 @@ export function useStudentMissionRuntime({
   function restartMission() {
     exitMission();
     resetSceneTelemetry();
+  }
+
+  function goBackOneStep() {
+    setSupportText("");
+    if (playback.phase === "choices") {
+      playback.setPhase("exploration");
+      return;
+    }
+    if (playback.phase === "exploration") {
+      playback.setPhase("speaking");
+      return;
+    }
+    if (playback.phase === "feedback") {
+      playback.setPhase("choices");
+      return;
+    }
+    playback.setPhase("speaking");
   }
 
   async function printMemento() {
@@ -267,6 +321,7 @@ export function useStudentMissionRuntime({
     scene,
     choiceFeedback,
     supportText,
+    explorationAnswer,
     backpackOpen,
     mapOpen,
     busy,
@@ -282,9 +337,11 @@ export function useStudentMissionRuntime({
     applyPendingScene,
     signal,
     askCharacter,
+    askExplorationQuestion,
     chooseSideQuest,
     exitMission,
     restartMission,
+    goBackOneStep,
     printMemento,
     markFirstChoicePreview,
   };

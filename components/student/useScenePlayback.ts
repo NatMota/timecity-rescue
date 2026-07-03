@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-export type ScenePlaybackPhase = "speaker-entering" | "speaking" | "speaker-exiting" | "choices" | "feedback";
+export type ScenePlaybackPhase = "speaker-entering" | "speaking" | "exploration" | "speaker-exiting" | "choices" | "feedback";
 
 const ENTER_MS = 420;
 const EXIT_MS = 380;
@@ -19,7 +19,15 @@ export function useScenePlayback(sceneKey: string | null) {
     };
   }, [sceneKey]);
 
-  const advanceToChoices = useCallback(() => {
+  const advanceToExploration = useCallback(() => {
+    setPhase("exploration");
+  }, []);
+
+  const advanceToChoices = useCallback((options?: { keepSpeaker?: boolean }) => {
+    if (options?.keepSpeaker) {
+      setPhase("choices");
+      return;
+    }
     setPhase("speaker-exiting");
     window.setTimeout(() => setPhase("choices"), EXIT_MS);
   }, []);
@@ -29,5 +37,5 @@ export function useScenePlayback(sceneKey: string | null) {
     window.setTimeout(() => setPhase("speaking"), ENTER_MS);
   }, []);
 
-  return { phase, setPhase, advanceToChoices, replaySpeech };
+  return { phase, setPhase, advanceToExploration, advanceToChoices, replaySpeech };
 }

@@ -20,6 +20,10 @@ Rigid invariants:
 - Correct answers often require a why or evidence follow-up.
 - Keep text short and age-appropriate.
 - Preserve the fixed learning objective: an AI agent needs a goal, inputs, rules and outputs before safe action.
+- Use exactly the canonical choice IDs below, in the same order, with no extra choices.
+- Use the canonical speaker name below exactly.
+- If language is "en", use the canonical choice text exactly.
+- If language is "zh", translate the canonical choice text, but keep the same IDs and order.
 - If language is "en", every user-visible string must be in English.
 - If language is "zh", every user-visible string must be in Simplified Chinese, including dialogue, read-again text, clue text, and choices.
 
@@ -67,6 +71,12 @@ ${JSON.stringify(BACKPACK_ITEMS)}
 
 Allowed choice types:
 ${JSON.stringify(node.allowed_choice_types)}
+
+Canonical choices:
+${JSON.stringify(node.fallback.choices, null, 2)}
+
+Canonical speaker name:
+${JSON.stringify(node.fallback.dialogue.speaker_name)}
 
 Return only valid JSON matching the schema. Use language "${language}".`;
 }

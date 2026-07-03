@@ -37,11 +37,33 @@ export async function generateScene(
   language: Language,
   student: StudentRecord | null,
 ): Promise<ScenePayload> {
-  const client = getOpenAIClient();
   const prompt = buildScenePrompt(nodeKey, student, language);
-  const model = getOpenAIModel();
   const hash = promptHash(prompt);
-  const roomSlug = NODE_BY_KEY[nodeKey]?.room_slug;
+  const node = NODE_BY_KEY[nodeKey];
+  const roomSlug = node?.room_slug;
+
+  if (node?.scripted) {
+    const scene = getFallbackScene(nodeKey, language);
+    await logLlmGenerationEvent({
+      sessionCode,
+      studentId: student?.id,
+      nodeKey,
+      roomSlug,
+      language,
+      model: "scripted-story",
+      resolvedModel: "scripted-story",
+      promptHash: hash,
+      promptChars: prompt.length,
+      success: true,
+      usedFallback: false,
+      usageDetails: { scripted: true },
+      scenePayload: scene,
+    });
+    return scene;
+  }
+
+  const client = getOpenAIClient();
+  const model = getOpenAIModel();
 
   if (!client) {
     const scene = getFallbackScene(nodeKey, language);

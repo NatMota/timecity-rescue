@@ -72,7 +72,7 @@ const SIDE_QUESTS: Record<string, Record<Language, SideQuest>> = {
       id: "telegraph-tidy",
       node_key: "H1_N10",
       title: "Side Quest: Telegraph Tidy",
-      prompt: "Which word makes the message easier for an agent to follow?",
+      prompt: "Which word makes the message easier for COG-9 to follow?",
       choices: [
         { id: "A", text: "Before noon", correct: true },
         { id: "B", text: "Soon-ish", correct: false },
@@ -85,7 +85,7 @@ const SIDE_QUESTS: Record<string, Record<Language, SideQuest>> = {
       id: "telegraph-tidy",
       node_key: "H1_N10",
       title: "支线任务：整理电报",
-      prompt: "哪个词能让智能体更容易执行消息？",
+      prompt: "哪个词能让 COG-9 更容易执行消息？",
       choices: [
         { id: "A", text: "中午前", correct: true },
         { id: "B", text: "差不多快点", correct: false },

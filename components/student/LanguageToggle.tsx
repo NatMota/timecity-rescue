@@ -6,9 +6,6 @@ export function LanguageToggle({ language, onChange }: { language: Language; onC
       <button type="button" aria-pressed={language === "en"} onClick={() => onChange("en")}>
         English
       </button>
-      <button type="button" aria-pressed={language === "zh"} onClick={() => onChange("zh")}>
-        中文
-      </button>
     </div>
   );
 }

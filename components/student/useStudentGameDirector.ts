@@ -7,8 +7,6 @@ import type { CharacterPlaybackPhase } from "@/components/shared/SceneCharacterL
 import { ROOM_SEQUENCE, ROOM_TITLES } from "@/lib/game/fixedGraph";
 import type { Language } from "@/lib/game/types";
 
-const codenames = ["ChronoCadet Blue", "ChronoCadet Spark", "ChronoCadet Gear", "ChronoCadet Nova"];
-
 export const avatarChoices = [
   { id: "blue", image: "/assets/avatars/avatar-1.png", en: "Blue Cadet", zh: "蓝色学员" },
   { id: "teal", image: "/assets/avatars/avatar-2.png", en: "Signal Scout", zh: "信号侦察员" },
@@ -21,6 +19,20 @@ export const avatarChoices = [
 type BackpackCopy = {
   button: string;
   items: Array<{ slug: string; item: string; description: string }>;
+};
+
+type ExplorationCopy = {
+  title: string;
+  starter: string;
+  ready: string;
+  questions: {
+    problem: string;
+    cog9: string;
+    cog9Answer: string;
+    inspect: string;
+    avoid: string;
+    avoidAnswer: string;
+  };
 };
 
 type StudentCopy = {
@@ -52,6 +64,7 @@ type StudentCopy = {
   clue: string;
   defaultClue: string;
   backpack: BackpackCopy;
+  exploration: ExplorationCopy;
 };
 
 const uiText = {
@@ -61,21 +74,21 @@ const uiText = {
     splashLead: "A story mission about AI, choices and debugging the city clock.",
     play: "Play",
     setupTitle: "Set up your mission",
-    setupLead: "Choose a codename, language and ChronoCadet before entering TimeCity.",
+    setupLead: "Choose your avatar before entering TimeCity.",
     codename: "Codename",
     avatar: "Choose your avatar",
-    avatarLead: "Pick the ChronoCadet who will appear on your mission card.",
+    avatarLead: "",
     continue: "Continue",
     back: "Back",
     introTitle: "Episode 1: The Missing Minute",
     introLead: "Ada has found a broken time signal. Your choices will teach COG-9 how to follow a goal safely.",
     introSpeaker: "Professor Ada",
-    begin: "Begin Episode 1",
-    loading: "Preparing your TimeCity scene...",
+    begin: "Begin Adventure",
+    loading: "Loading",
     episode: "Episode 1 - The Missing Minute",
     print: "Generate Agent Builder Passport",
     exit: "Exit",
-    restart: "Restart",
+    restart: "Back",
     map: "Map",
     askCharacter: "Ask character",
     footer: "The child never chats freely with AI. The AI adapts inside a teacher-controlled sandbox.",
@@ -83,6 +96,19 @@ const uiText = {
     readAgain: "Read Again",
     clue: "Ask for Clue",
     defaultClue: "Check the clue that changes the system.",
+    exploration: {
+      title: "Explore the problem",
+      starter: "Ask a question before trying the challenge.",
+      ready: "Ready to try challenge",
+      questions: {
+        problem: "What is going wrong?",
+        cog9: "Who are you?",
+        cog9Answer: "COG-9 is the station helper robot on screen. He can read signals and suggest train movements, but he should not act until the evidence is clear.",
+        inspect: "What should I inspect first?",
+        avoid: "Why not move another train?",
+        avoidAnswer: "Because we do not know what is broken yet. If COG-9 moves another train before checking evidence, he could repeat the same mistake faster.",
+      },
+    },
     backpack: {
       button: "Backpack",
       items: [
@@ -101,21 +127,21 @@ const uiText = {
     splashLead: "一个关于 AI、选择和修复城市时钟的故事任务。",
     play: "开始",
     setupTitle: "设置你的任务",
-    setupLead: "进入 TimeCity 之前，先选择代号、语言和时空学员。",
+    setupLead: "进入 TimeCity 之前，先选择头像。",
     codename: "代号",
     avatar: "选择你的头像",
-    avatarLead: "选择会出现在任务卡上的时空学员。",
+    avatarLead: "",
     continue: "继续",
     back: "返回",
     introTitle: "第一集：消失的一分钟",
     introLead: "Ada 发现了损坏的时间信号。你的选择会教 COG-9 如何安全地跟随目标。",
     introSpeaker: "Ada 教授",
-    begin: "进入第一集",
-    loading: "正在准备你的 TimeCity 场景...",
+    begin: "开始冒险",
+    loading: "加载中",
     episode: "第一集 - 消失的一分钟",
     print: "生成智能体建造者护照",
     exit: "退出",
-    restart: "重新开始",
+    restart: "返回",
     map: "地图",
     askCharacter: "询问角色",
     footer: "孩子不会与 AI 自由聊天。AI 只会在教师控制的沙盒中调整内容。",
@@ -123,6 +149,19 @@ const uiText = {
     readAgain: "再读一遍",
     clue: "请求线索",
     defaultClue: "检查会改变系统的线索。",
+    exploration: {
+      title: "探索问题",
+      starter: "先问一个问题，再尝试挑战。",
+      ready: "准备尝试挑战",
+      questions: {
+        problem: "哪里不对？",
+        cog9: "你是谁？",
+        cog9Answer: "屏幕上的 COG-9 是车站助手机器人。它可以读取信号并建议火车移动，但必须先弄清楚证据。",
+        inspect: "我应该先检查什么？",
+        avoid: "为什么现在不能直接修？",
+        avoidAnswer: "因为我们还不知道哪里坏了。如果先改控制台，COG-9 可能会更快地重复同一个错误。",
+      },
+    },
     backpack: {
       button: "背包",
       items: [
@@ -145,28 +184,27 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
   const [language, setLanguage] = useState<Language>("en");
   const [startStep, setStartStep] = useState<StartStep>("splash");
   const [startTransition, setStartTransition] = useState<"idle" | "fading">("idle");
-  const [displayName] = useState(codenames[0]);
   const [avatarColor, setAvatarColor] = useState(avatarChoices[0].id);
   const transitionTimerRef = useRef<number | null>(null);
   const sessionCode = useMemo(() => initialSessionCode.toUpperCase(), [initialSessionCode]);
   const copy = uiText[language];
+  const selectedAvatar = avatarChoices.find((avatar) => avatar.id === avatarColor) ?? avatarChoices[0];
+  const selectedAvatarLabel = selectedAvatar[language];
 
   const runtime = useStudentMissionRuntime({
     sessionCode,
-    displayName,
+    displayName: selectedAvatarLabel,
     avatarColor,
-    language,
+    language: "en",
     setLanguage,
     onExit: () => setStartStep("splash"),
     text: { defaultClue: copy.defaultClue },
   });
 
-  const selectedAvatar = avatarChoices.find((avatar) => avatar.id === avatarColor) ?? avatarChoices[0];
-  const selectedAvatarLabel = selectedAvatar[language];
   const introDialogue =
     language === "zh"
-      ? `欢迎来到 TimeCity 火车站，${displayName}。我是 Ada 教授。你的 ${selectedAvatarLabel} 头像已准备好。COG-9 正在站台等你，我们要找回消失的一分钟。`
-      : `Welcome to TimeCity Station, ${displayName}. I'm Professor Ada. Your ${selectedAvatarLabel} avatar is ready. COG-9 is waiting on the platform, and we need to find the missing minute.`;
+      ? `欢迎来到 TimeCity 火车站。我是 Ada 教授。你的 ${selectedAvatarLabel} 头像已准备好。两个车站时钟对不上，一列火车刚刚提前离站。我们先找线索，再碰控制台。`
+      : `Welcome to TimeCity Station. I'm Professor Ada. Your ${selectedAvatarLabel} avatar is ready. Two station clocks disagree, and a train has just left early. We inspect first, then touch the controls.`;
   const introPlayback = useScenePlayback(startStep === "intro" ? `intro-${language}-${avatarColor}` : null);
 
   useEffect(() => {
@@ -185,8 +223,51 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
   }, []);
 
   const missionPhase = runtime.playback.phase;
+  const showCog9IntroductionQuestion = runtime.scene?.node_key === "H1_N01" && runtime.scene.character === "cog9";
+  const explorationQuestions =
+    runtime.scene && missionPhase === "exploration"
+      ? [
+          {
+            id: "problem",
+            question: copy.exploration.questions.problem,
+            answer: runtime.scene.dialogue.read_again_text,
+          },
+          ...(showCog9IntroductionQuestion
+            ? [
+                {
+                  id: "cog9",
+                  question: copy.exploration.questions.cog9,
+                  answer: copy.exploration.questions.cog9Answer,
+                },
+              ]
+            : []),
+          {
+            id: "inspect",
+            question: copy.exploration.questions.inspect,
+            answer: runtime.scene.clue?.text || copy.defaultClue,
+          },
+          {
+            id: "avoid",
+            question: copy.exploration.questions.avoid,
+            answer: copy.exploration.questions.avoidAnswer,
+          },
+        ]
+      : [];
+  const explorationSurface =
+    runtime.student && runtime.scene && missionPhase === "exploration"
+      ? {
+          title: copy.exploration.title,
+          speakerName: runtime.scene.dialogue.speaker_name,
+          text: runtime.scene.dialogue.text,
+          questions: explorationQuestions,
+          answer: runtime.explorationAnswer || copy.exploration.starter,
+          readyLabel: copy.exploration.ready,
+          onAsk: runtime.askExplorationQuestion,
+          onReady: () => runtime.playback.advanceToChoices({ keepSpeaker: true }),
+        }
+      : null;
   const completionSurface =
-    runtime.student && runtime.student.badge_progress >= 100
+    runtime.student?.memento
       ? {
           title: language === "zh" ? "任务完成" : "Mission Complete",
           body: language === "zh" ? "你已经准备好生成 Agent Builder Passport。" : "You are ready to generate your Agent Builder Passport.",
@@ -229,6 +310,12 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
     runtime.student && runtime.scene && missionPhase === "choices"
       ? {
           complete: Boolean(completionSurface),
+          prompt: completionSurface
+            ? null
+            : {
+                speakerName: runtime.scene.dialogue.speaker_name,
+                text: runtime.scene.dialogue.text,
+              },
           main: mainChoiceSurface,
           sideQuest: sideQuestSurface,
           support: supportSurface,
@@ -250,7 +337,7 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
     : null;
   const navigation = {
     exit: { label: copy.exit, onSelect: runtime.exitMission },
-    restart: { label: copy.restart, onSelect: runtime.restartMission },
+    restart: { label: copy.restart, onSelect: runtime.goBackOneStep },
     map: {
       label: copy.map,
       active: runtime.mapOpen,
@@ -294,19 +381,21 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
       dialogue: introDialogue,
       phase: introPlayback.phase,
       characterPhase: characterPhaseFor(introPlayback.phase),
-      showDialogue: introPlayback.phase === "speaking",
-      showActions: introPlayback.phase === "choices",
-      continue: introPlayback.advanceToChoices,
+      showDialogue: introPlayback.phase === "speaker-entering" || introPlayback.phase === "speaking",
+      showActions: false,
+      continue: runtime.join,
       begin: runtime.join,
     },
     mission: {
       student: runtime.student,
       scene: runtime.scene,
       phase: missionPhase,
-      characterPhase: characterPhaseFor(missionPhase),
-      showDialogue: missionPhase === "speaking",
+      characterPhase: characterPhaseFor(missionPhase, { keepSpeakerInChoices: true, keepSpeakerInExploration: true }),
+      showDialogue: missionPhase === "speaker-entering" || missionPhase === "speaking",
+      showExploration: missionPhase === "exploration",
       showFeedback: missionPhase === "feedback" && Boolean(runtime.choiceFeedback),
       showChoices: missionPhase === "choices",
+      explorationSurface,
       choiceSurface,
       supportSurface,
       mapSurface,
@@ -314,15 +403,20 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
       choiceFeedback: runtime.choiceFeedback,
       busy: runtime.busy,
       changeLanguage: runtime.changeLanguage,
-      continueDialogue: runtime.playback.advanceToChoices,
+      continueDialogue: runtime.playback.advanceToExploration,
       applyPendingScene: runtime.applyPendingScene,
     },
   };
 }
 
-function characterPhaseFor(phase: ScenePlaybackPhase): CharacterPlaybackPhase {
+function characterPhaseFor(
+  phase: ScenePlaybackPhase,
+  options?: { keepSpeakerInChoices?: boolean; keepSpeakerInExploration?: boolean },
+): CharacterPlaybackPhase {
   if (phase === "speaker-entering") return "entering";
   if (phase === "speaking") return "speaking";
+  if (phase === "exploration" && options?.keepSpeakerInExploration) return "speaking";
+  if (phase === "choices" && options?.keepSpeakerInChoices) return "speaking";
   if (phase === "speaker-exiting") return "exiting";
   return "hidden";
 }

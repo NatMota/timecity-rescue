@@ -85,6 +85,7 @@ export type StoryNode = {
   fixed_story_beat: string;
   canonical_prompt_intent: string;
   allowed_choice_types: ChoiceType[];
+  scripted?: boolean;
   required_backpack_item?: string;
   sort_order: number;
   fallback: ScenePayload;

@@ -106,6 +106,8 @@ async function main() {
       model,
       langfuse: {
         traced: true,
+        scoresPosted: false,
+        note: "Image evals are offline artifacts only; they are not attached as Langfuse scores.",
         tags: ["timecity", "browser-image-eval", environment],
       },
       screenshots: capture.screenshots,
@@ -138,6 +140,10 @@ async function main() {
             confidence: item.result.confidence_1_to_5,
             issues: item.result.issues,
           })),
+          langfuse: {
+            scoresPosted: false,
+            note: "Image evals are offline artifacts only; they are not attached as Langfuse scores.",
+          },
         },
         null,
         2,
@@ -167,43 +173,45 @@ async function driveGame() {
   await capture("02-avatar-menu", screenshots, snapshots);
 
   await clickText("Signal Scout");
-  let state = await waitForVisibleText(["Professor Ada", "Continue", "Preparing your TimeCity scene"], 18000);
-  if (!state.visibleText.includes("Professor Ada") && hasButton(state, "Continue")) {
-    await clickText("Continue");
-    state = await waitForVisibleText(["Professor Ada", "Preparing your TimeCity scene"], 18000);
-  }
-  if (!state.visibleText.includes("Professor Ada")) {
-    await waitForVisibleText(["Professor Ada"], 18000);
-  }
+  await wait(900);
+  await clickText("Continue");
+  await waitForVisibleText(["Professor Ada", "Begin Adventure"], 18000);
   await capture("03-professor-intro", screenshots, snapshots);
 
-  state = await latestSnapshot();
-  if (hasButton(state, "Continue")) {
-    await clickText("Continue");
-    await waitForVisibleText(["Begin Episode 1", "Welcome to TimeCity Station", "Every train"], 12000);
+  let state = await latestSnapshot();
+  if (hasButton(state, "Begin Adventure")) {
+    await clickText("Begin Adventure");
+    await waitForVisibleText(["COG-9", "station helper robot"], 15000);
   }
-  await capture("04-episode-start", screenshots, snapshots);
-
-  state = await latestSnapshot();
-  if (hasButton(state, "Begin Episode 1")) {
-    await clickText("Begin Episode 1");
-    await waitForVisibleText(["Welcome to TimeCity Station", "Every train"], 15000);
-  }
-  await capture("05-station-dialogue", screenshots, snapshots);
+  await capture("04-cog9-intro", screenshots, snapshots);
 
   state = await latestSnapshot();
   if (hasButton(state, "Continue")) {
     await clickText("Continue");
   }
-  await waitForVisibleText(["The route rule is missing a safety condition", "Ask for Clue"], 15000);
-  await capture("06-first-choice", screenshots, snapshots);
+  await waitForVisibleText(["Explore the problem", "Ready to try challenge"], 15000);
+  await capture("05-problem-exploration", screenshots, snapshots);
+
+  state = await latestSnapshot();
+  if (hasButton(state, "Who are you?")) {
+    await clickText("Who are you?");
+    await wait(700);
+  }
+  await capture("06-character-question", screenshots, snapshots);
+
+  state = await latestSnapshot();
+  if (hasButton(state, "Ready to try challenge")) {
+    await clickText("Ready to try challenge");
+  }
+  await waitForVisibleText(["Ask for Clue", "Compare the clock"], 15000);
+  await capture("07-first-choice", screenshots, snapshots);
 
   state = await latestSnapshot();
   if (hasButton(state, "Ask for Clue")) {
     await clickText("Ask for Clue");
     await wait(700);
   }
-  await capture("07-clue-support", screenshots, snapshots);
+  await capture("08-clue-support", screenshots, snapshots);
 
   return { screenshots, snapshots };
 }

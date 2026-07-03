@@ -8,6 +8,6 @@ export function getSafeNodeKey(nodeKey?: string | null) {
 export function badgeProgressForNode(nodeKey: string) {
   if (nodeKey === "COMPLETE") return 100;
   const order = NODE_BY_KEY[nodeKey]?.sort_order ?? 1;
-  const denominator = Math.max(1, EPISODE_ONE_NODES.length - 1);
+  const denominator = Math.max(1, EPISODE_ONE_NODES.length);
   return Math.min(100, Math.round(((order - 1) / denominator) * 100));
 }
