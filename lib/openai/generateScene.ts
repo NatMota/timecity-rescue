@@ -1,7 +1,7 @@
 import { zodTextFormat } from "openai/helpers/zod";
 import { getOpenAIClient, getOpenAIModel } from "./client";
 import { buildScenePrompt } from "./scenePrompt";
-import { ScenePayloadSchema } from "./sceneSchema";
+import { OpenAIScenePayloadSchema } from "./sceneSchema";
 import { validateScenePayload } from "./validateScene";
 import { getFallbackScene } from "@/lib/game/fallbackScenes";
 import { NODE_BY_KEY } from "@/lib/game/fixedGraph";
@@ -12,6 +12,24 @@ import {
   summarizeOpenAIUsage,
 } from "@/lib/telemetry/server";
 import type { Language, ScenePayload, StudentRecord } from "@/lib/game/types";
+
+type NullableGeneratedScene = ScenePayload & {
+  backpack_prompt?: (NonNullable<ScenePayload["backpack_prompt"]> & { required_item_slug?: string | null }) | null;
+  clue?: ScenePayload["clue"] | null;
+  consequence_preview?: ScenePayload["consequence_preview"] | null;
+};
+
+function normalizeGeneratedScene(value: unknown) {
+  const scene = { ...(value as NullableGeneratedScene) };
+  if (!scene.backpack_prompt) {
+    delete scene.backpack_prompt;
+  } else if (!scene.backpack_prompt.required_item_slug) {
+    delete scene.backpack_prompt.required_item_slug;
+  }
+  if (!scene.clue) delete scene.clue;
+  if (!scene.consequence_preview) delete scene.consequence_preview;
+  return scene;
+}
 
 export async function generateScene(
   sessionCode: string,
@@ -51,11 +69,11 @@ export async function generateScene(
         model,
         input: prompt,
         text: {
-          format: zodTextFormat(ScenePayloadSchema, "timecity_scene"),
+          format: zodTextFormat(OpenAIScenePayloadSchema, "timecity_scene"),
         },
       });
       const latencyMs = Date.now() - startedAt;
-      const parsed = response.output_parsed ?? JSON.parse(response.output_text);
+      const parsed = normalizeGeneratedScene(response.output_parsed ?? JSON.parse(response.output_text));
       const validated = validateScenePayload(parsed);
       await logLlmGenerationEvent({
         sessionCode,
