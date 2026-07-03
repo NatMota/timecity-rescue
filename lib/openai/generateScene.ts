@@ -1,5 +1,7 @@
+import { zodTextFormat } from "openai/helpers/zod";
 import { getOpenAIClient, getOpenAIModel } from "./client";
 import { buildScenePrompt } from "./scenePrompt";
+import { ScenePayloadSchema } from "./sceneSchema";
 import { validateScenePayload } from "./validateScene";
 import { getFallbackScene } from "@/lib/game/fallbackScenes";
 import { NODE_BY_KEY } from "@/lib/game/fixedGraph";
@@ -45,18 +47,15 @@ export async function generateScene(
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const startedAt = Date.now();
     try {
-      const response = await client.responses.create({
+      const response = await client.responses.parse({
         model,
         input: prompt,
         text: {
-          format: {
-            type: "json_object",
-          },
+          format: zodTextFormat(ScenePayloadSchema, "timecity_scene"),
         },
       });
       const latencyMs = Date.now() - startedAt;
-      const text = response.output_text;
-      const parsed = JSON.parse(text);
+      const parsed = response.output_parsed ?? JSON.parse(response.output_text);
       const validated = validateScenePayload(parsed);
       await logLlmGenerationEvent({
         sessionCode,
