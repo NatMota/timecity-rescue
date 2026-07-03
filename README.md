@@ -79,6 +79,7 @@ The combined verifier runs the core local evidence set:
 ```bash
 pnpm lint
 pnpm build
+pnpm episode:alignment
 pnpm episode:pacing
 pnpm persona:playthrough
 pnpm runtime:observability
@@ -89,6 +90,7 @@ Expected checks:
 - Teacher can create a session and copy a join link.
 - Student can join with a preset codename, language, and avatar colour.
 - Student choices advance through Episode 1 without free-text input.
+- Episode 1 follows the train-network pretotype route, concept coverage, backpack items, side-quest count, and passport evidence requirements.
 - Episode 1 stays inside the 35-45 minute pretotype pacing model.
 - Persona playthroughs finish Episode 1 and generate Agent Builder Passports with route, backpack, and side-quest evidence.
 - Teacher dashboard refreshes progress and can override a selected pupil.

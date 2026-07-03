@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "episode:alignment": "node scripts/episode-alignment.mjs",
     "episode:pacing": "node scripts/episode-pacing.mjs",
     "persona:playthrough": "node scripts/persona-playthrough.mjs",
     "runtime:observability": "node scripts/runtime-observability.mjs",

@@ -9,6 +9,10 @@ const skipBuild = args.has("--skip-build");
 
 const checks = [
   {
+    name: "Episode story alignment",
+    command: [process.execPath, "scripts/episode-alignment.mjs"],
+  },
+  {
     name: "Episode pacing",
     command: [process.execPath, "scripts/episode-pacing.mjs"],
   },
