@@ -36,13 +36,8 @@ const requiredSceneStageTokens = [
   "SceneCharacterLayer",
   "RoomBackground",
   "ChoiceButtons",
-  "SideQuestPanel",
   "ClueButton",
-  "BackpackDrawer",
-  "Map",
-  "RotateCcw",
   "XCircle",
-  "HelpCircle",
   "Printer",
 ];
 
@@ -52,13 +47,11 @@ const requiredDirectorTokens = [
   "StartStep",
   "fadeToStep",
   "mainChoiceSurface",
-  "sideQuestSurface",
   "supportSurface",
   "completionSurface",
   "mapSurface",
   "navigation",
   "showDialogue",
-  "showFeedback",
   "showChoices",
   "continueDialogue",
   "choiceSurface",
@@ -74,17 +67,13 @@ const requiredCssTokens = [
   ".intro-scene-dialogue",
   ".scene-dialogue-overlay",
   ".choice-grid",
-  ".side-quest-panel",
-  ".backpack-panel",
   ".student-nav-actions",
-  ".map-overlay",
+  ".progress-action",
 ];
 
 const studentFiles = [
   "components/student/SceneStage.tsx",
   "components/student/ChoiceButtons.tsx",
-  "components/student/SideQuestPanel.tsx",
-  "components/student/BackpackDrawer.tsx",
   "components/student/ClueButton.tsx",
   "components/student/LanguageToggle.tsx",
   "components/student/useStudentGameDirector.ts",
@@ -144,7 +133,7 @@ const checks = [
     expected: "SceneStage renders the director model without owning timers, route rules, or runtime hooks",
   },
   {
-    label: "Student game director owns scene, intro, feedback, choices, support, map, and nav surfaces",
+    label: "Student game director owns scene, intro, choices, support, map, and nav surfaces",
     pass: requiredDirectorTokens.every((token) => gameDirector.includes(token)),
     value: missingTokens(requiredDirectorTokens, gameDirector),
     expected: "no missing director orchestration tokens",
@@ -168,10 +157,10 @@ const checks = [
     expected: 6,
   },
   {
-    label: "Language copy covers English and Chinese",
-    pass: /en:\s*\{[\s\S]*zh:\s*\{/.test(gameDirector) && /中文|开始|背包|地图/.test(gameDirector),
-    value: "English and Chinese UI dictionaries found",
-    expected: "bilingual UI copy",
+    label: "Player-facing language UI is descoped to English",
+    pass: /en:\s*\{/.test(gameDirector),
+    value: "English UI dictionary found",
+    expected: "English-only player UI",
   },
 ];
 

@@ -19,17 +19,37 @@ const maxSteps = Number(argValue("--max-steps", "50"));
 const useJudge = args.has("--judge");
 const requireJudge = args.has("--require-judge");
 const model = process.env.OPENAI_EVAL_MODEL || process.env.OPENAI_MODEL || "gpt-4.1";
+const roomExplorationSource = fs.existsSync("lib/game/roomExploration.ts")
+  ? fs.readFileSync("lib/game/roomExploration.ts", "utf8")
+  : "";
 
 const JudgeSchema = z.object({
-  age_fit_score_1_to_5: z.number().min(1).max(5),
-  objective_score_1_to_5: z.number().min(1).max(5),
+  pass: z.boolean(),
+  score_1_to_5: z.number().min(1).max(5),
+  story_tension_score_1_to_5: z.number().min(1).max(5),
+  answer_leakage_risk: z.enum(["low", "medium", "high"]),
   bug_risk: z.enum(["low", "medium", "high"]),
   confusion_risk: z.enum(["low", "medium", "high"]),
-  looks_like_game_score_1_to_5: z.number().min(1).max(5),
   too_easy_nodes: z.array(z.string()),
   too_confusing_nodes: z.array(z.string()),
+  issues: z.array(z.string()),
   recommendations: z.array(z.string()),
 });
+
+const evalJudges = [
+  {
+    id: "teacher_syllabus",
+    title: "Teacher syllabus judge",
+    prompt:
+      "You are a UK computing teacher. Judge whether the playthrough teaches age-appropriate AI/computing ideas for class use: inputs, outputs, sequences, loops, debugging, rules, safeguards, feedback, and bounded agent behaviour. Be strict about curriculum clarity. Do not pass if the story is fun but the learning objective is vague.",
+  },
+  {
+    id: "student_fun",
+    title: "Student fun judge",
+    prompt:
+      "You are a 9-10-year-old student who wants a game, not a worksheet. Judge whether the story has tension, understandable stakes, character personality, agency, and a reason to continue. Be strict. Do not pass if it feels like clicking obvious quiz answers, if the answer is leaked before the challenge, or if character dialogue is dry.",
+  },
+];
 
 const personas = [
   {
@@ -59,24 +79,31 @@ const personas = [
     wrongFirstNodes: ["H1_N03", "H1_N19"],
   },
   {
-    id: "bilingual_builder",
-    displayName: "Bilingual Builder",
+    id: "story_seeker",
+    displayName: "Story Seeker",
     avatarColor: "teal",
-    language: "zh",
+    language: "en",
     profile:
-      "A bilingual 10-year-old who can read Simplified Chinese, likes building things, and needs computing terms to stay concrete.",
-    responseMs: 6800,
-    firstChoiceMs: 4200,
-    clueNodes: ["H1_N10", "H1_N22"],
-    readAgainEvery: 5,
-    wrongFirstNodes: [],
+      "A 10-year-old who likes characters and mystery, but loses interest if every screen feels like a school quiz.",
+    responseMs: 5400,
+    firstChoiceMs: 3600,
+    clueNodes: ["H1_N01", "H1_N11"],
+    readAgainEvery: 6,
+    wrongFirstNodes: ["H1_N05"],
   },
 ];
 
-const sideQuestIdsByNode = {
-  H1_N04: "cargo-cleanup",
-  H1_N07: "loop-trace",
-  H1_N10: "telegraph-tidy",
+const bestChoiceByNode = {
+  H1_N01: "B",
+  H1_N02: "C",
+  H1_N04: "B",
+  H1_N05: "C",
+  H1_N06: "B",
+  H1_N13: "B",
+  H1_N15: "B",
+  H1_N16: "C",
+  H1_N20: "C",
+  H1_N24: "B",
 };
 
 async function main() {
@@ -98,7 +125,11 @@ async function main() {
     results,
   };
   report.mechanicsPass = results.every((result) => result.pass);
-  report.judgePass = !useJudge || results.every((result) => judgeResultPasses(result.llmJudge, requireJudge));
+  report.judgePass =
+    !useJudge ||
+    results.every((result) =>
+      result.llmJudge?.skipped ? !requireJudge : result.llmJudge?.pass === true,
+    );
   report.pass = report.mechanicsPass && report.judgePass;
   fs.mkdirSync("artifacts", { recursive: true });
   const file = path.join("artifacts", `persona-playthrough-${Date.now()}.json`);
@@ -138,21 +169,6 @@ async function runPersona(persona) {
       await supportSignal(sessionCode, student.id, scene, "clue_count", persona.responseMs);
       supportUses.clue += 1;
     }
-    const sideQuestId = sideQuestIdsByNode[scene.node_key];
-    if (sideQuestId && attempts === 0) {
-      await post("/api/student/event", {
-        session_code: sessionCode,
-        student_id: student.id,
-        event_type: "side_quest_choice",
-        node_key: scene.node_key,
-        room_slug: scene.room_slug,
-        choice_id: "A",
-        scene_elapsed_ms: persona.responseMs,
-        metadata: { side_quest_id: sideQuestId, correct: true },
-      });
-      sideQuests += 1;
-    }
-
     const choiceId = chooseDeterministicChoice(scene, persona, attempts);
     const chosen = scene.choices.find((choice) => choice.id === choiceId) || scene.choices[0];
     const submitted = await post("/api/choice/submit", {
@@ -173,6 +189,7 @@ async function runPersona(persona) {
       room: scene.room_slug,
       speaker: scene.dialogue.speaker_name,
       dialogue: scene.dialogue.text,
+      choices: scene.choices.map((choice) => ({ id: choice.id, text: choice.text })),
       choice: { id: chosen.id, text: chosen.text },
       classification: submitted.classification,
       consequence: submitted.consequence,
@@ -194,7 +211,6 @@ async function runPersona(persona) {
     /Agent Builder Passport/.test(memento.html) &&
     memento.card?.routeTaken?.length >= 7 &&
     memento.card?.backpackItemsUsed?.length >= 5 &&
-    memento.card?.sideQuestsCompleted?.length >= 3 &&
     transcript.some((entry) => entry.completed);
 
   return {
@@ -223,7 +239,7 @@ async function runPersona(persona) {
 
 function chooseDeterministicChoice(scene, persona, attempts) {
   if (attempts === 0 && persona.wrongFirstNodes.includes(scene.node_key)) return "B";
-  return "A";
+  return bestChoiceByNode[scene.node_key] || "A";
 }
 
 async function judgePlaythrough(result) {
@@ -233,36 +249,57 @@ async function judgePlaythrough(result) {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const compactTranscript = result.transcript.map((entry) => ({
     node: entry.node,
+    room: entry.room,
+    speaker: entry.speaker,
     dialogue: entry.dialogue,
+    choices: entry.choices,
     choice: entry.choice.text,
     classification: entry.classification,
   }));
-  const response = await client.responses.parse({
-    model,
-    text: {
-      format: zodTextFormat(JudgeSchema, "persona_playthrough_judge"),
-    },
-    input: [
-      "You are evaluating a classroom-safe AI/coding adventure for 9-10-year-olds.",
-      "Judge whether this persona could finish without bugs, whether the content supports agent-building objectives, whether it feels like a game rather than a quiz, and whether anything looks too confusing or too easy.",
-      "The UI has full-screen illustrated rooms, character cutouts, dialogue overlays, fixed nav buttons, a backpack, map, side quests, and no open text input. You are judging from the transcript and stated UI, not a screenshot.",
-      JSON.stringify({
-        persona: result.persona,
-        profile: result.profile,
-        language: result.language,
-        finalNode: result.finalNode,
-        progress: result.progress,
-        wrong: result.wrong,
-        supportUses: result.supportUses,
-        sideQuests: result.sideQuests,
-        transcript: compactTranscript,
-      }),
-    ].join("\n\n"),
-  });
-  const parsed = response.output_parsed ?? parseJsonish(response.output_text || "{}");
+  const results = [];
+  for (const judge of evalJudges) {
+    const response = await client.responses.parse({
+      model,
+      text: {
+        format: zodTextFormat(JudgeSchema, `persona_${judge.id}_judge`),
+      },
+      input: [
+        judge.prompt,
+        "Evaluate a classroom-safe button-only AI/coding adventure for 9-10-year-olds.",
+        "The UI has full-screen illustrated rooms, character cutouts, room-specific exploration panels, dialogue overlays, fixed nav buttons, no open text input, and side quests are currently descoped. You are judging from the transcript, room exploration data, and stated UI, not a screenshot.",
+        "Fail if the route completes but feels dry, leaks answers before the challenge, repeats generic labels, lacks story tension, or does not teach the promised concepts for your perspective.",
+        JSON.stringify({
+          judge: judge.id,
+          persona: result.persona,
+          profile: result.profile,
+          language: result.language,
+          finalNode: result.finalNode,
+          progress: result.progress,
+          wrong: result.wrong,
+          supportUses: result.supportUses,
+          roomExplorationSource,
+          transcript: compactTranscript,
+        }),
+      ].join("\n\n"),
+    });
+    const parsed = response.output_parsed ?? parseJsonish(response.output_text || "{}");
+    results.push({
+      judge: judge.id,
+      title: judge.title,
+      result: parsed,
+    });
+  }
+  const teacher = results.find((item) => item.judge === "teacher_syllabus")?.result;
+  const student = results.find((item) => item.judge === "student_fun")?.result;
   return {
-    ...parsed,
-    pass: judgeResultPasses(parsed, true),
+    judges: results,
+    tension: {
+      teacherScore: teacher?.score_1_to_5,
+      studentFunScore: student?.score_1_to_5,
+      scoreGap: teacher && student ? Math.abs(teacher.score_1_to_5 - student.score_1_to_5) : null,
+      note: "Teacher syllabus and student fun are intentionally judged separately so a curriculum pass cannot hide a boring experience.",
+    },
+    pass: results.every((item) => judgeResultPasses(item.result, true)),
   };
 }
 
@@ -325,13 +362,18 @@ function summarizeReport(report, file) {
               reason: result.llmJudge.reason,
             }
           : {
-            ageFit: result.llmJudge.age_fit_score_1_to_5,
-            objective: result.llmJudge.objective_score_1_to_5,
-            gameFeel: result.llmJudge.looks_like_game_score_1_to_5,
-            bugRisk: result.llmJudge.bug_risk,
-            confusionRisk: result.llmJudge.confusion_risk,
-            pass: result.llmJudge.pass,
-          }
+              judges: result.llmJudge.judges?.map((item) => ({
+                judge: item.judge,
+                score: item.result.score_1_to_5,
+                tension: item.result.story_tension_score_1_to_5,
+                answerLeakage: item.result.answer_leakage_risk,
+                bugRisk: item.result.bug_risk,
+                confusionRisk: item.result.confusion_risk,
+                pass: item.result.pass,
+              })),
+              tension: result.llmJudge.tension,
+              pass: result.llmJudge.pass,
+            }
         : undefined,
     })),
   };
@@ -353,10 +395,12 @@ function loadEnvFile(file) {
 function judgeResultPasses(judge, required) {
   if (!judge) return !required;
   if (judge.skipped) return !required;
+  if (Array.isArray(judge.judges)) return judge.pass === true;
   return (
-    judge.age_fit_score_1_to_5 >= 4 &&
-    judge.objective_score_1_to_5 >= 4 &&
-    judge.looks_like_game_score_1_to_5 >= 4 &&
+    judge.pass === true &&
+    judge.score_1_to_5 >= 4 &&
+    judge.story_tension_score_1_to_5 >= 3 &&
+    judge.answer_leakage_risk !== "high" &&
     judge.bug_risk !== "high" &&
     judge.confusion_risk !== "high"
   );

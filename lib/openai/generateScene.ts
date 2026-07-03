@@ -43,7 +43,7 @@ export async function generateScene(
   const roomSlug = node?.room_slug;
 
   if (node?.scripted) {
-    const scene = getFallbackScene(nodeKey, language);
+    const scene = getFallbackScene(nodeKey, language, student);
     await logLlmGenerationEvent({
       sessionCode,
       studentId: student?.id,
@@ -66,7 +66,7 @@ export async function generateScene(
   const model = getOpenAIModel();
 
   if (!client) {
-    const scene = getFallbackScene(nodeKey, language);
+    const scene = getFallbackScene(nodeKey, language, student);
     await logLlmGenerationEvent({
       sessionCode,
       studentId: student?.id,
@@ -133,7 +133,7 @@ export async function generateScene(
       // Fall through to retry once, then deterministic fallback.
     }
   }
-  const scene = getFallbackScene(nodeKey, language);
+  const scene = getFallbackScene(nodeKey, language, student);
   await logLlmGenerationEvent({
     sessionCode,
     studentId: student?.id,

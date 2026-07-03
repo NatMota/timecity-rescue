@@ -49,13 +49,13 @@ const judges = [
     id: "teacher_curriculum",
     title: "Teacher Curriculum Judge",
     prompt:
-      "You are a UK computing/AI-readiness teacher evaluating whether the visible game teaches age-appropriate curriculum concepts. Focus on learning objective clarity, closed-choice safety, progression, misconceptions, vocabulary, and whether students aged 9-16 could learn useful computing/AI ideas from what is visible.",
+      "You are a UK computing/AI-readiness teacher evaluating whether the visible game teaches age-appropriate curriculum concepts. Focus on learning objective clarity, closed-choice safety, progression, misconceptions, vocabulary, and whether students aged 9-16 could learn useful computing/AI ideas from what is visible. Be strict: fail if the scene is fun but does not clearly teach inputs, outputs, rules, debugging, safeguards, or bounded agent behaviour.",
   },
   {
     id: "student_fun",
     title: "Student Fun Judge",
     prompt:
-      "You are a student persona who wants the game to feel fun, understandable, and worth continuing. Judge visual excitement, clarity of choices, story hook, agency, rewards, and whether the experience feels like a game rather than a worksheet.",
+      "You are a student persona who wants the game to feel fun, understandable, and worth continuing. Judge visual excitement, clarity of choices, story hook, character personality, agency, rewards, and whether the experience feels like a game rather than a worksheet. Be strict: fail if answers are hinted before the challenge, if labels repeat generically, if the story has no tension, or if the student is only clicking quiz answers.",
   },
   {
     id: "ux_accessibility",
@@ -189,21 +189,21 @@ async function driveGame() {
   if (hasButton(state, "Continue")) {
     await clickText("Continue");
   }
-  await waitForVisibleText(["Explore the problem", "Ready to try challenge"], 15000);
+  await waitForVisibleText(["Station clue check", "Try the station challenge"], 15000);
   await capture("05-problem-exploration", screenshots, snapshots);
 
   state = await latestSnapshot();
-  if (hasButton(state, "Who are you?")) {
-    await clickText("Who are you?");
+  if (hasButton(state, "Who is COG-9?")) {
+    await clickText("Who is COG-9?");
     await wait(700);
   }
   await capture("06-character-question", screenshots, snapshots);
 
   state = await latestSnapshot();
-  if (hasButton(state, "Ready to try challenge")) {
-    await clickText("Ready to try challenge");
+  if (hasButton(state, "Try the station challenge")) {
+    await clickText("Try the station challenge");
   }
-  await waitForVisibleText(["Ask for Clue", "Compare the clock"], 15000);
+  await waitForVisibleText(["Ask for Clue", "Compare the sign"], 15000);
   await capture("07-first-choice", screenshots, snapshots);
 
   state = await latestSnapshot();

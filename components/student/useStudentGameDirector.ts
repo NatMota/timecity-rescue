@@ -5,6 +5,7 @@ import { useScenePlayback, type ScenePlaybackPhase } from "./useScenePlayback";
 import { useStudentMissionRuntime } from "./useStudentMissionRuntime";
 import type { CharacterPlaybackPhase } from "@/components/shared/SceneCharacterLayer";
 import { ROOM_SEQUENCE, ROOM_TITLES } from "@/lib/game/fixedGraph";
+import { getRoomExploration, isRoomIntroNode } from "@/lib/game/roomExploration";
 import type { Language } from "@/lib/game/types";
 
 export const avatarChoices = [
@@ -22,9 +23,6 @@ type BackpackCopy = {
 };
 
 type ExplorationCopy = {
-  title: string;
-  starter: string;
-  ready: string;
   questions: {
     problem: string;
     cog9: string;
@@ -97,9 +95,6 @@ const uiText = {
     clue: "Ask for Clue",
     defaultClue: "Check the clue that changes the system.",
     exploration: {
-      title: "Explore the problem",
-      starter: "Ask a question before trying the challenge.",
-      ready: "Ready to try challenge",
       questions: {
         problem: "What is going wrong?",
         cog9: "Who are you?",
@@ -150,9 +145,6 @@ const uiText = {
     clue: "请求线索",
     defaultClue: "检查会改变系统的线索。",
     exploration: {
-      title: "探索问题",
-      starter: "先问一个问题，再尝试挑战。",
-      ready: "准备尝试挑战",
       questions: {
         problem: "哪里不对？",
         cog9: "你是谁？",
@@ -223,45 +215,17 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
   }, []);
 
   const missionPhase = runtime.playback.phase;
-  const showCog9IntroductionQuestion = runtime.scene?.node_key === "H1_N01" && runtime.scene.character === "cog9";
-  const explorationQuestions =
-    runtime.scene && missionPhase === "exploration"
-      ? [
-          {
-            id: "problem",
-            question: copy.exploration.questions.problem,
-            answer: runtime.scene.dialogue.read_again_text,
-          },
-          ...(showCog9IntroductionQuestion
-            ? [
-                {
-                  id: "cog9",
-                  question: copy.exploration.questions.cog9,
-                  answer: copy.exploration.questions.cog9Answer,
-                },
-              ]
-            : []),
-          {
-            id: "inspect",
-            question: copy.exploration.questions.inspect,
-            answer: runtime.scene.clue?.text || copy.defaultClue,
-          },
-          {
-            id: "avoid",
-            question: copy.exploration.questions.avoid,
-            answer: copy.exploration.questions.avoidAnswer,
-          },
-        ]
-      : [];
+  const roomExploration = runtime.scene ? getRoomExploration(runtime.scene.node_key) : null;
+  const shouldExploreRoom = Boolean(runtime.scene && roomExploration && isRoomIntroNode(runtime.scene.node_key));
   const explorationSurface =
-    runtime.student && runtime.scene && missionPhase === "exploration"
+    runtime.student && runtime.scene && roomExploration && missionPhase === "exploration"
       ? {
-          title: copy.exploration.title,
+          title: roomExploration.title,
           speakerName: runtime.scene.dialogue.speaker_name,
           text: runtime.scene.dialogue.text,
-          questions: explorationQuestions,
-          answer: runtime.explorationAnswer || copy.exploration.starter,
-          readyLabel: copy.exploration.ready,
+          questions: roomExploration.questions,
+          answer: runtime.explorationAnswer || roomExploration.starter,
+          readyLabel: roomExploration.readyLabel,
           onAsk: runtime.askExplorationQuestion,
           onReady: () => runtime.playback.advanceToChoices({ keepSpeaker: true }),
         }
@@ -296,16 +260,6 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
           onChoose: runtime.submitChoice,
         }
       : null;
-  const sideQuestSurface =
-    runtime.sideQuest && missionPhase === "choices"
-      ? {
-          sideQuest: runtime.sideQuest,
-          complete: runtime.sideQuestComplete,
-          result: runtime.sideQuestResult,
-          disabled: runtime.busy,
-          onChoose: runtime.chooseSideQuest,
-        }
-      : null;
   const choiceSurface =
     runtime.student && runtime.scene && missionPhase === "choices"
       ? {
@@ -315,9 +269,8 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
             : {
                 speakerName: runtime.scene.dialogue.speaker_name,
                 text: runtime.scene.dialogue.text,
-              },
+          },
           main: mainChoiceSurface,
-          sideQuest: sideQuestSurface,
           support: supportSurface,
           completion: completionSurface,
         }
@@ -392,19 +345,22 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
       phase: missionPhase,
       characterPhase: characterPhaseFor(missionPhase, { keepSpeakerInChoices: true, keepSpeakerInExploration: true }),
       showDialogue: missionPhase === "speaker-entering" || missionPhase === "speaking",
-      showExploration: missionPhase === "exploration",
-      showFeedback: missionPhase === "feedback" && Boolean(runtime.choiceFeedback),
+      showExploration: missionPhase === "exploration" && Boolean(explorationSurface),
       showChoices: missionPhase === "choices",
       explorationSurface,
       choiceSurface,
       supportSurface,
       mapSurface,
       navigation,
-      choiceFeedback: runtime.choiceFeedback,
       busy: runtime.busy,
       changeLanguage: runtime.changeLanguage,
-      continueDialogue: runtime.playback.advanceToExploration,
-      applyPendingScene: runtime.applyPendingScene,
+      continueDialogue: () => {
+        if (shouldExploreRoom) {
+          runtime.playback.advanceToExploration();
+          return;
+        }
+        runtime.playback.advanceToChoices({ keepSpeaker: true });
+      },
     },
   };
 }

@@ -1,7 +1,7 @@
 import { badgeProgressForNode } from "./nextNode";
 import { evaluateChoice } from "./evaluateChoice";
 import { NODE_BY_KEY, FIRST_NODE_KEY } from "./fixedGraph";
-import { riskFlagsForStudent } from "./adaptDifficulty";
+import { difficultyForStudent, riskFlagsForStudent } from "./adaptDifficulty";
 import { runtimeSessionCode } from "@/lib/runtime/environment";
 import type { ClassSession, Language, MissionGoalCard, StudentRecord } from "./types";
 
@@ -63,6 +63,7 @@ function makeStudent(display_name: string, avatar_color: string, language: Langu
     correct_count: display_name === "Leo" ? 2 : 0,
     wrong_count: display_name === "Jay" ? 1 : 0,
     fast_correct_count: display_name === "Leo" ? 2 : 0,
+    difficulty_level: 2,
     retry_count: display_name === "Jay" ? 1 : 0,
     last_choice: display_name === "Ava" ? "B" : undefined,
     last_classification: display_name === "Ava" ? "misconception" : undefined,
@@ -81,6 +82,7 @@ function recompute(student: StudentRecord): StudentRecord {
     visited_room_slugs: student.visited_room_slugs ?? [student.current_room_slug],
     completed_side_quest_ids: student.completed_side_quest_ids ?? [],
     risk_flags: riskFlagsForStudent(student),
+    difficulty_level: difficultyForStudent(student),
     updated_at: now(),
   };
 }

@@ -37,7 +37,6 @@ export function missionGoalCardHtml(card: MissionGoalCard) {
         <dt>Route taken</dt><dd>${listHtml(card.routeTaken)}</dd>
         <dt>Locations visited</dt><dd>${listHtml(card.cityLocationsVisited)}</dd>
         <dt>Backpack items used</dt><dd>${listHtml(card.backpackItemsUsed)}</dd>
-        <dt>Side quests</dt><dd>${listHtml(card.sideQuestsCompleted, "None completed")}</dd>
         <dt>Agent goal</dt><dd>${escapeHtml(card.cog9Goal)}</dd>
         <dt>Important input</dt><dd>${escapeHtml(card.importantInput)}</dd>
         <dt>Safe rule</dt><dd>${escapeHtml(card.safeRule)}</dd>

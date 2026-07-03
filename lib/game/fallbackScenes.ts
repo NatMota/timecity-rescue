@@ -1,5 +1,63 @@
 import { NODE_BY_KEY } from "./fixedGraph";
-import type { Language, ScenePayload } from "./types";
+import type { Language, ScenePayload, StudentRecord } from "./types";
+
+const RETRY_DIALOGUE: Partial<Record<string, Record<string, string>>> = {
+  H1_N01: {
+    unreliable_evidence:
+      "COG-9's hand hovers over the dispatch switch. The green sign is tempting, but the main clock and log still disagree. Which evidence check should stop him?",
+    unsafe_shortcut:
+      "The next train lurches forward in the simulator, then the clock splits again. COG-9 freezes. What should we check before moving anything real?",
+  },
+  H1_N02: {
+    mixed_context_inputs:
+      "Ada shakes her head. Cargo and passengers matter later, but the missing minute started in the station time evidence. Which input set explains that mismatch?",
+    partial_time_evidence:
+      "COG-9 tries the extra detail and his screen fills with noise. Which three time clues actually belong in this first check?",
+  },
+  H1_N03: {
+    irrelevant_feature:
+      "Nix grins as the DISPATCH button flashes faster. Speed is the trap. What question would reveal the risk before anyone presses it?",
+    unsafe_shortcut:
+      "Nix almost gets the button. Ada blocks it with the Safety Seal. What should we ask before trusting a glowing shortcut?",
+  },
+  H1_N05: {
+    input_as_output:
+      "COG-9 reads the manifest again. The manifest is evidence he reads, not the decision he creates. Which thing comes out of his route check?",
+    display_as_output:
+      "The warning panel blinks, but it is not the final route decision. Which result does COG-9 produce after reading the cargo evidence?",
+  },
+  H1_N10: {
+    ambiguous_condition:
+      "The 1888 worker reads the message twice and still hesitates. It has a track, but the timing and condition are fuzzy. Which wording removes the guesswork?",
+    missing_specifics:
+      "The telegraph clicks out a short order, but short is not the same as clear. Which message tells the worker exactly when and where?",
+  },
+  H1_N13: {
+    missing_guardrail:
+      "The blueprint flickers. A goal and a rule are not enough if the agent can act with no tools, feedback, or safety check. Which full build is safer?",
+    surface_agent:
+      "COG-9 tries to build from the output backward and the blueprint collapses. Which parts does a working helper need before it recommends routes?",
+  },
+  H1_N19: {
+    loudest_signal_bias:
+      "The loudest passenger gets a route, but the fragile cargo alarm starts screaming. What should the agent balance instead of volume?",
+    delay_only_priority:
+      "A delayed train gets priority, then a heavy cargo train rolls onto a weak track. What else belongs in the decision?",
+  },
+  H1_N21: {
+    driver_only_debugging:
+      "The driver followed the instruction exactly. That means the bug is probably in the rule or output check. What comparison will find it?",
+    ignore_edge_case:
+      "The average result looks fine until the glass cargo rattles again. Edge cases are where bugs hide. What should we inspect?",
+  },
+};
+
+const GENERIC_RETRY_DIALOGUE: Record<string, string> = {
+  misconception:
+    "The city gives a warning pulse. That idea has a hidden risk. Look at the evidence again and choose the rule that prevents the same mistake.",
+  wrong:
+    "The simulator flashes amber. That move does not explain the broken signal yet. Try again by matching the evidence to the action.",
+};
 
 const ZH_LINES: Record<string, string> = {
   H1_N01: "你好。我是 COG-9，车站助手机器人。我发出了三列火车，因为站台屏幕显示 GO，但 Ada 说主时钟和发车日志对不上。发出下一列火车前，我们应该先检查什么？",
@@ -82,9 +140,9 @@ const ZH_CLUES: Record<string, string> = {
   H1_N24: "护照应该展示你组装的智能体，而不只是分数。",
 };
 
-export function getFallbackScene(nodeKey: string, language: Language): ScenePayload {
+export function getFallbackScene(nodeKey: string, language: Language, student?: StudentRecord | null): ScenePayload {
   const node = NODE_BY_KEY[nodeKey] ?? NODE_BY_KEY.H1_N01;
-  if (language === "en") return node.fallback;
+  if (language === "en") return withRetryDialogue(node.fallback, student);
   return {
     ...node.fallback,
     language,
@@ -103,5 +161,33 @@ export function getFallbackScene(nodeKey: string, language: Language): ScenePayl
           text: ZH_CLUES[node.node_key] ?? node.fallback.clue.text,
         }
       : node.fallback.clue,
+  };
+}
+
+function withRetryDialogue(scene: ScenePayload, student?: StudentRecord | null): ScenePayload {
+  if (
+    !student ||
+    student.current_node_key !== scene.node_key ||
+    (student.last_classification !== "misconception" && student.last_classification !== "wrong")
+  ) {
+    return scene;
+  }
+  const retryText =
+    (student.last_misconception && RETRY_DIALOGUE[scene.node_key]?.[student.last_misconception]) ||
+    GENERIC_RETRY_DIALOGUE[student.last_classification];
+  return {
+    ...scene,
+    scene_id: `${scene.scene_id}-retry-${student.last_misconception || student.last_classification}`,
+    dialogue: {
+      ...scene.dialogue,
+      text: retryText,
+      read_again_text: retryText,
+    },
+    clue: scene.clue
+      ? {
+          ...scene.clue,
+          text: "Look for the hidden risk in the last choice, then match the evidence to the safest next action.",
+        }
+      : scene.clue,
   };
 }

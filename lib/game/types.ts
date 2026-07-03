@@ -117,6 +117,7 @@ export type StudentRecord = {
   correct_count: number;
   wrong_count: number;
   fast_correct_count: number;
+  difficulty_level: 1 | 2 | 3;
   retry_count: number;
   last_choice?: string;
   last_classification?: ChoiceClassification;

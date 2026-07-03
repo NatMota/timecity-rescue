@@ -1186,7 +1186,8 @@ a {
 
 .scene-dialogue-overlay .primary-action,
 .choice-feedback-overlay .primary-action,
-.exploration-panel .primary-action {
+.exploration-panel .primary-action,
+.exploration-panel .progress-action {
   margin-top: 18px;
 }
 
@@ -1224,6 +1225,26 @@ a {
 
 .exploration-question-actions button:hover {
   background: rgba(34, 88, 199, 0.98);
+}
+
+.progress-action {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid rgba(132, 255, 210, 0.68);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #1ccf86 0%, #0f9f67 100%);
+  box-shadow: 0 14px 28px rgba(9, 94, 62, 0.28);
+  color: #061a13;
+  padding: 12px 18px;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.progress-action:hover {
+  background: linear-gradient(180deg, #38e9a0 0%, #12ad70 100%);
 }
 
 .exploration-answer {

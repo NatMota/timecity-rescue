@@ -136,13 +136,20 @@ export function useStudentMissionRuntime({
       }),
     });
     const data = await response.json();
-    setPendingStudent(data.student);
-    setPendingScene(data.scene);
-    setChoiceFeedback({ text: data.consequence, completed: Boolean(data.completed) });
+    setStudent(data.student);
+    setScene(data.scene);
+    setPendingStudent(null);
+    setPendingScene(null);
+    setChoiceFeedback(null);
     setSupportText("");
     setExplorationAnswer("");
     setSideQuestResult(null);
-    playback.setPhase("feedback");
+    resetSceneTelemetry();
+    if (data.completed || data.student?.memento) {
+      playback.setPhase("choices");
+    } else {
+      playback.replaySpeech();
+    }
     setBusy(false);
   }
 

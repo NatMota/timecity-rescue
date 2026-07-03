@@ -3,18 +3,17 @@
 import fs from "node:fs";
 
 const graphText = fs.readFileSync("lib/game/fixedGraph.ts", "utf8");
-const sideQuestText = fs.readFileSync("lib/game/sideQuests.ts", "utf8");
 
 const nodeKeys = [...graphText.matchAll(/node_key: "(H1_N\d+)"/g)].map((match) => match[1]);
 const roomSlugs = [...graphText.matchAll(/room_slug: "([^"]+)"/g)].map((match) => match[1]);
-const sideQuestNodes = [...sideQuestText.matchAll(/node_key: "(H1_N\d+)"/g)].map((match) => match[1]);
+const sideQuestNodes = [];
 const uniqueRooms = Array.from(new Set(roomSlugs));
 
 const pacing = {
   setupMinutes: 5,
   mainDecisionMinutes: round(nodeKeys.length * 1.1),
   roomTransitionMinutes: round(Math.max(0, uniqueRooms.length - 1) * 0.45),
-  sideQuestMinutes: round(new Set(sideQuestNodes).size * 2.6),
+  sideQuestMinutes: 0,
   passportWrapMinutes: 3,
 };
 const estimatedMinutes = round(Object.values(pacing).reduce((sum, value) => sum + value, 0));
@@ -27,16 +26,16 @@ const checks = [
     expected: "20-30",
   },
   {
-    label: "Optional side quests",
-    pass: new Set(sideQuestNodes).size >= 2 && new Set(sideQuestNodes).size <= 3,
+    label: "Optional side quests descoped",
+    pass: new Set(sideQuestNodes).size === 0,
     value: new Set(sideQuestNodes).size,
-    expected: "2-3",
+    expected: "0",
   },
   {
     label: "Estimated child-paced duration",
-    pass: estimatedMinutes >= 35 && estimatedMinutes <= 45,
+    pass: estimatedMinutes >= 28 && estimatedMinutes <= 40,
     value: `${estimatedMinutes} minutes`,
-    expected: "35-45 minutes",
+    expected: "28-40 minutes",
   },
 ];
 

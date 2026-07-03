@@ -1,13 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, Play, Printer, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Play, Printer, ShieldCheck, XCircle } from "lucide-react";
 import { RoomBackground } from "@/components/shared/RoomBackground";
 import { SceneCharacterLayer } from "@/components/shared/SceneCharacterLayer";
 import { ChoiceButtons } from "./ChoiceButtons";
 import { ClueButton } from "./ClueButton";
 import { LanguageToggle } from "./LanguageToggle";
-import { SideQuestPanel } from "./SideQuestPanel";
 import { useStudentGameDirector } from "./useStudentGameDirector";
 
 export function SceneStage({ initialSessionCode }: { initialSessionCode: string }) {
@@ -152,17 +151,9 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
             ))}
           </div>
           <p className="exploration-answer">{mission.explorationSurface.answer}</p>
-          <button type="button" className="primary-action" onClick={mission.explorationSurface.onReady}>
+          <button type="button" className="progress-action" onClick={mission.explorationSurface.onReady}>
             {mission.explorationSurface.readyLabel}
-          </button>
-        </section>
-      ) : null}
-
-      {mission.showFeedback && mission.choiceFeedback ? (
-        <section className="choice-feedback-overlay" aria-live="polite">
-          <p>{mission.choiceFeedback.text}</p>
-          <button type="button" className="primary-action" onClick={mission.applyPendingScene}>
-            {copy.continue}
+            <ArrowRight size={22} />
           </button>
         </section>
       ) : null}
@@ -190,15 +181,6 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
                 onChoose={mission.choiceSurface.main.onChoose}
               />
             </>
-          ) : null}
-          {mission.choiceSurface.sideQuest ? (
-            <SideQuestPanel
-              sideQuest={mission.choiceSurface.sideQuest.sideQuest}
-              complete={mission.choiceSurface.sideQuest.complete}
-              result={mission.choiceSurface.sideQuest.result}
-              disabled={mission.choiceSurface.sideQuest.disabled}
-              onChoose={mission.choiceSurface.sideQuest.onChoose}
-            />
           ) : null}
           {mission.choiceSurface.support ? (
             <div className="mission-tools">
