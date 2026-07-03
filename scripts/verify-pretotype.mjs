@@ -17,6 +17,10 @@ const checks = [
     command: [process.execPath, "scripts/episode-pacing.mjs"],
   },
   {
+    name: "Visual surface",
+    command: [process.execPath, "scripts/visual-surface.mjs"],
+  },
+  {
     name: "Persona playthroughs",
     command: [
       process.execPath,

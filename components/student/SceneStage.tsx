@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Image from "next/image";
 import { ArrowLeft, HelpCircle, Map, Play, Printer, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
 import { RoomBackground } from "@/components/shared/RoomBackground";
@@ -12,166 +11,15 @@ import { ChoiceButtons } from "./ChoiceButtons";
 import { ClueButton } from "./ClueButton";
 import { LanguageToggle } from "./LanguageToggle";
 import { SideQuestPanel } from "./SideQuestPanel";
-import { useScenePlayback, type ScenePlaybackPhase } from "./useScenePlayback";
-import { useStudentMissionRuntime } from "./useStudentMissionRuntime";
-import type { Language } from "@/lib/game/types";
-
-const codenames = ["ChronoCadet Blue", "ChronoCadet Spark", "ChronoCadet Gear", "ChronoCadet Nova"];
-const avatarChoices = [
-  { id: "blue", image: "/assets/avatars/avatar-1.png", en: "Blue Cadet", zh: "蓝色学员" },
-  { id: "teal", image: "/assets/avatars/avatar-2.png", en: "Signal Scout", zh: "信号侦察员" },
-  { id: "purple", image: "/assets/avatars/avatar-3.png", en: "Portal Pilot", zh: "传送门飞行员" },
-  { id: "amber", image: "/assets/avatars/avatar-4.png", en: "Gear Runner", zh: "齿轮奔跑者" },
-  { id: "rose", image: "/assets/avatars/avatar-5.png", en: "Spark Solver", zh: "火花解谜者" },
-  { id: "green", image: "/assets/avatars/avatar-6.png", en: "Code Keeper", zh: "代码守护者" },
-];
-
-type StartStep = "splash" | "menu" | "intro";
-
-const uiText = {
-  en: {
-    mission: "Join mission",
-    splashTitle: "TimeCity Rescue",
-    splashLead: "A story mission about AI, choices and debugging the city clock.",
-    play: "Play",
-    setupTitle: "Set up your mission",
-    setupLead: "Choose a codename, language and ChronoCadet before entering TimeCity.",
-    codename: "Codename",
-    avatar: "Choose your avatar",
-    avatarLead: "Pick the ChronoCadet who will appear on your mission card.",
-    continue: "Continue",
-    back: "Back",
-    introTitle: "Episode 1: The Missing Minute",
-    introLead: "Ada has found a broken time signal. Your choices will teach COG-9 how to follow a goal safely.",
-    introSpeaker: "Professor Ada",
-    begin: "Begin Episode 1",
-    loading: "Preparing your TimeCity scene...",
-    episode: "Episode 1 - The Missing Minute",
-    print: "Generate Agent Builder Passport",
-    exit: "Exit",
-    restart: "Restart",
-    map: "Map",
-    askCharacter: "Ask character",
-    footer: "The child never chats freely with AI. The AI adapts inside a teacher-controlled sandbox.",
-    clueFallback: "Use a support button if you want a safer next step.",
-    readAgain: "Read Again",
-    clue: "Ask for Clue",
-    defaultClue: "Check the clue that changes the system.",
-    backpack: {
-      button: "Backpack",
-      items: [
-        { slug: "logic_lens", item: "Logic Lens", description: "Reveals hidden rules." },
-        { slug: "data_slate", item: "Data Slate", description: "Stores clean inputs and outputs." },
-        { slug: "debug_wrench", item: "Debug Wrench", description: "Inspects loops and broken rules." },
-        { slug: "prompt_card", item: "Prompt Card", description: "Makes instructions clearer." },
-        { slug: "agent_blueprint", item: "Agent Blueprint", description: "Assembles the final helper agent." },
-        { slug: "safety_seal", item: "Safety Seal", description: "Adds a human-check guardrail." },
-      ],
-    },
-  },
-  zh: {
-    mission: "加入任务",
-    splashTitle: "TimeCity Rescue",
-    splashLead: "一个关于 AI、选择和修复城市时钟的故事任务。",
-    play: "开始",
-    setupTitle: "设置你的任务",
-    setupLead: "进入 TimeCity 之前，先选择代号、语言和时空学员。",
-    codename: "代号",
-    avatar: "选择你的头像",
-    avatarLead: "选择会出现在任务卡上的时空学员。",
-    continue: "继续",
-    back: "返回",
-    introTitle: "第一集：消失的一分钟",
-    introLead: "Ada 发现了损坏的时间信号。你的选择会教 COG-9 如何安全地跟随目标。",
-    introSpeaker: "Ada 教授",
-    begin: "进入第一集",
-    loading: "正在准备你的 TimeCity 场景...",
-    episode: "第一集 - 消失的一分钟",
-    print: "生成智能体建造者护照",
-    exit: "退出",
-    restart: "重新开始",
-    map: "地图",
-    askCharacter: "询问角色",
-    footer: "孩子不会与 AI 自由聊天。AI 只会在教师控制的沙盒中调整内容。",
-    clueFallback: "如果你想要更安全的下一步，可以使用帮助按钮。",
-    readAgain: "再读一遍",
-    clue: "请求线索",
-    defaultClue: "检查会改变系统的线索。",
-    backpack: {
-      button: "背包",
-      items: [
-        { slug: "logic_lens", item: "逻辑镜片", description: "显示隐藏规则。" },
-        { slug: "data_slate", item: "数据板", description: "保存干净的输入和输出。" },
-        { slug: "debug_wrench", item: "调试扳手", description: "检查循环和错误规则。" },
-        { slug: "prompt_card", item: "提示卡", description: "让指令更清楚。" },
-        { slug: "agent_blueprint", item: "智能体蓝图", description: "组装最终的助手智能体。" },
-        { slug: "safety_seal", item: "安全印章", description: "加入人工检查护栏。" },
-      ],
-    },
-  },
-} satisfies Record<Language, Record<string, unknown>>;
+import { useStudentGameDirector } from "./useStudentGameDirector";
 
 export function SceneStage({ initialSessionCode }: { initialSessionCode: string }) {
-  const [language, setLanguage] = useState<Language>("en");
-  const [startStep, setStartStep] = useState<StartStep>("splash");
-  const [startTransition, setStartTransition] = useState<"idle" | "fading">("idle");
-  const [displayName] = useState(codenames[0]);
-  const [avatarColor, setAvatarColor] = useState(avatarChoices[0].id);
-  const sessionCode = useMemo(() => initialSessionCode.toUpperCase(), [initialSessionCode]);
-  const copy = uiText[language] as typeof uiText.en;
-  const runtime = useStudentMissionRuntime({
-    sessionCode,
-    displayName,
-    avatarColor,
-    language,
-    setLanguage,
-    onExit: () => setStartStep("splash"),
-    text: { defaultClue: copy.defaultClue },
-  });
-  const {
-    student,
-    scene,
-    choiceFeedback,
-    supportText,
-    backpackOpen,
-    mapOpen,
-    busy,
-    playback: gamePlayback,
-    sideQuest,
-    sideQuestComplete,
-    sideQuestResult,
-    setBackpackOpen,
-    setMapOpen,
-    join,
-    changeLanguage,
-    submitChoice,
-    applyPendingScene,
-    signal,
-    askCharacter,
-    chooseSideQuest,
-    exitMission,
-    restartMission,
-    printMemento,
-    markFirstChoicePreview,
-  } = runtime;
-  const selectedAvatar = avatarChoices.find((avatar) => avatar.id === avatarColor) ?? avatarChoices[0];
-  const selectedAvatarLabel = selectedAvatar[language];
-  const introDialogue =
-    language === "zh"
-      ? `欢迎来到 TimeCity 火车站，${displayName}。我是 Ada 教授。你的 ${selectedAvatarLabel} 头像已准备好。COG-9 正在站台等你，我们要找回消失的一分钟。`
-      : `Welcome to TimeCity Station, ${displayName}. I'm Professor Ada. Your ${selectedAvatarLabel} avatar is ready. COG-9 is waiting on the platform, and we need to find the missing minute.`;
-  const introPlayback = useScenePlayback(startStep === "intro" ? `intro-${language}-${avatarColor}` : null);
+  const game = useStudentGameDirector({ initialSessionCode });
+  const { copy, language, mission, sessionCode, setup, start, intro } = game;
+  const { student, scene } = mission;
 
-  function fadeToStep(nextStep: StartStep) {
-    setStartTransition("fading");
-    window.setTimeout(() => {
-      setStartStep(nextStep);
-      setStartTransition("idle");
-    }, 680);
-  }
-
-  if (!student || !scene) {
-    if (student) {
+  if (game.screen !== "mission" || !student || !scene) {
+    if (game.screen === "loading") {
       return (
         <main className="student-splash">
           <Image src="/assets/backgrounds/splash-screen.png" alt="" fill priority sizes="100vw" className="student-splash-art" />
@@ -185,7 +33,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
 
     return (
       <main className="student-splash">
-        {startStep === "intro" ? (
+        {start.showIntroRoom ? (
           <>
             <RoomBackground roomSlug="future_trainstation" />
             <div className="scene-scrim" />
@@ -193,17 +41,17 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         ) : (
           <Image src="/assets/backgrounds/splash-screen.png" alt="" fill priority sizes="100vw" className="student-splash-art" />
         )}
-        {startStep === "splash" ? (
+        {start.showPlay ? (
           <section className="splash-landing" aria-label="Start TimeCity Rescue">
-            <button type="button" className="play-action amethyst-action" onClick={() => fadeToStep("menu")} disabled={startTransition === "fading"}>
+            <button type="button" className="play-action amethyst-action" onClick={start.play} disabled={start.transitionActive}>
               <Play size={28} fill="currentColor" />
               {copy.play}
             </button>
           </section>
         ) : null}
-        <div className={`start-fade ${startTransition === "fading" ? "is-active" : ""}`} />
+        <div className={`start-fade ${start.transitionActive ? "is-active" : ""}`} />
 
-        {startStep === "menu" ? (
+        {start.showMenu ? (
           <section className="start-panel start-panel-menu" aria-labelledby="config-title">
             <div className="start-panel-heading">
               <div>
@@ -213,7 +61,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
                 <h1 id="config-title">{copy.setupTitle}</h1>
                 <p className="lead">{copy.setupLead}</p>
               </div>
-              <LanguageToggle language={language} onChange={changeLanguage} />
+              <LanguageToggle language={language} onChange={setup.changeLanguage} />
             </div>
             <div className="join-options">
               <div>
@@ -222,13 +70,13 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
               </div>
             </div>
             <div className="avatar-grid">
-              {avatarChoices.map((avatar) => (
+              {setup.avatarChoices.map((avatar) => (
                 <button
                   key={avatar.id}
                   type="button"
                   className="avatar-choice"
-                  aria-pressed={avatarColor === avatar.id}
-                  onClick={() => setAvatarColor(avatar.id)}
+                  aria-pressed={setup.avatarColor === avatar.id}
+                  onClick={() => setup.setAvatarColor(avatar.id)}
                 >
                   <span className="avatar-choice-frame">
                     <Image src={avatar.image} alt="" fill sizes="(max-width: 900px) 42vw, 150px" className="avatar-choice-art" />
@@ -238,36 +86,36 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
               ))}
             </div>
             <div className="start-nav">
-              <button type="button" className="secondary-action" onClick={() => setStartStep("splash")}>
+              <button type="button" className="secondary-action" onClick={start.backToSplash}>
                 <ArrowLeft size={18} />
                 {copy.back}
               </button>
-              <button type="button" className="primary-action" onClick={() => fadeToStep("intro")} disabled={startTransition === "fading"}>
+              <button type="button" className="primary-action" onClick={start.continueToIntro} disabled={start.transitionActive}>
                 {copy.continue}
               </button>
             </div>
           </section>
         ) : null}
 
-        {startStep === "intro" ? (
+        {start.showIntro ? (
           <section className="intro-scene" aria-label={copy.introTitle}>
-            <SceneCharacterLayer character="ada" state="neutral" phase={characterPhaseFor(introPlayback.phase)} />
-            {introPlayback.phase === "speaking" ? (
+            <SceneCharacterLayer character="ada" state="neutral" phase={intro.characterPhase} />
+            {intro.showDialogue ? (
               <div className="intro-scene-dialogue">
                 <p className="eyebrow">{copy.introSpeaker}</p>
-                <p>{introDialogue}</p>
-                <button type="button" className="primary-action" onClick={introPlayback.advanceToChoices}>
+                <p>{intro.dialogue}</p>
+                <button type="button" className="primary-action" onClick={intro.continue}>
                   {copy.continue}
                 </button>
               </div>
             ) : null}
-            {introPlayback.phase === "choices" ? (
+            {intro.showActions ? (
               <div className="intro-scene-actions">
-                <button type="button" className="secondary-action" onClick={() => setStartStep("menu")}>
+                <button type="button" className="secondary-action" onClick={start.backToMenu}>
                   <ArrowLeft size={18} />
                   {copy.back}
                 </button>
-                <button type="button" className="primary-action" onClick={join} disabled={busy}>
+                <button type="button" className="primary-action" onClick={intro.begin} disabled={mission.busy}>
                   <ShieldCheck size={20} />
                   {copy.begin}
                 </button>
@@ -289,33 +137,33 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
           <h1>TimeCity Rescue</h1>
         </div>
         <BadgeRibbon progress={student.badge_progress} />
-        <LanguageToggle language={language} onChange={changeLanguage} />
+        <LanguageToggle language={language} onChange={mission.changeLanguage} />
       </header>
 
-      <SceneCharacterLayer character={scene.character} state={scene.character_state} phase={characterPhaseFor(gamePlayback.phase)} />
+      <SceneCharacterLayer character={scene.character} state={scene.character_state} phase={mission.characterPhase} />
 
-      {gamePlayback.phase === "speaking" ? (
+      {mission.showDialogue ? (
         <section className="scene-dialogue-overlay" aria-live="polite">
           <p className="eyebrow">{scene.dialogue.speaker_name}</p>
           <p>{scene.dialogue.text}</p>
-          <button type="button" className="primary-action" onClick={gamePlayback.advanceToChoices}>
+          <button type="button" className="primary-action" onClick={mission.continueDialogue}>
             {copy.continue}
           </button>
         </section>
       ) : null}
 
-      {gamePlayback.phase === "feedback" && choiceFeedback ? (
+      {mission.showFeedback && mission.choiceFeedback ? (
         <section className="choice-feedback-overlay" aria-live="polite">
-          <p>{choiceFeedback.text}</p>
-          <button type="button" className="primary-action" onClick={applyPendingScene}>
+          <p>{mission.choiceFeedback.text}</p>
+          <button type="button" className="primary-action" onClick={mission.applyPendingScene}>
             {copy.continue}
           </button>
         </section>
       ) : null}
 
-      {gamePlayback.phase === "choices" ? (
+      {mission.showChoices && mission.choiceSurface ? (
         <section className="mission-panel mission-panel-overlay">
-          {student.badge_progress >= 100 ? (
+          {mission.choiceSurface.complete ? (
             <div className="completion-panel">
               <p className="eyebrow">Agent Badge</p>
               <h2>{language === "zh" ? "任务完成" : "Mission Complete"}</h2>
@@ -326,30 +174,35 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
               </p>
             </div>
           ) : (
-            <ChoiceButtons choices={scene.choices} disabled={busy} onPreview={markFirstChoicePreview} onChoose={submitChoice} />
+            <ChoiceButtons
+              choices={mission.choiceSurface.choices}
+              disabled={mission.busy}
+              onPreview={mission.markFirstChoicePreview}
+              onChoose={mission.submitChoice}
+            />
           )}
-          {sideQuest ? (
+          {mission.choiceSurface.sideQuest ? (
             <SideQuestPanel
-              sideQuest={sideQuest}
-              complete={sideQuestComplete}
-              result={sideQuestResult}
-              disabled={busy}
-              onChoose={chooseSideQuest}
+              sideQuest={mission.choiceSurface.sideQuest}
+              complete={mission.choiceSurface.sideQuestComplete}
+              result={mission.choiceSurface.sideQuestResult}
+              disabled={mission.busy}
+              onChoose={mission.chooseSideQuest}
             />
           ) : null}
           <div className="mission-tools">
             <ClueButton
-              clue={supportText}
+              clue={mission.supportText}
               readAgain={scene.dialogue.read_again_text}
               readAgainLabel={copy.readAgain}
               clueLabel={copy.clue}
               fallbackText={copy.clueFallback}
-              onClue={() => signal("clue_count")}
-              onReadAgain={() => signal("read_again_count")}
+              onClue={() => mission.signal("clue_count")}
+              onReadAgain={() => mission.signal("read_again_count")}
             />
           </div>
-          {student.badge_progress >= 100 ? (
-            <button type="button" className="primary-action" onClick={printMemento}>
+          {mission.choiceSurface.complete ? (
+            <button type="button" className="primary-action" onClick={mission.printMemento}>
               <Printer size={20} />
               {copy.print}
             </button>
@@ -357,12 +210,12 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         </section>
       ) : null}
 
-      {mapOpen ? (
+      {mission.mapOpen ? (
         <aside className="map-overlay" aria-label={copy.map}>
           <div className="map-panel">
             <div className="map-panel-heading">
               <p className="eyebrow">{copy.map}</p>
-              <button type="button" className="quiet-button" onClick={() => setMapOpen(false)}>
+              <button type="button" className="quiet-button" onClick={() => mission.setMapOpen(false)}>
                 <XCircle size={18} />
                 {copy.exit}
               </button>
@@ -380,24 +233,24 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
 
       <footer className="student-footer">
         <div className="student-nav-actions">
-          <button type="button" className="quiet-button" onClick={exitMission}>
+          <button type="button" className="quiet-button" onClick={mission.exit}>
             <XCircle size={18} />
             {copy.exit}
           </button>
-          <button type="button" className="quiet-button" onClick={restartMission}>
+          <button type="button" className="quiet-button" onClick={mission.restart}>
             <RotateCcw size={18} />
             {copy.restart}
           </button>
-          <button type="button" className="quiet-button" onClick={() => setMapOpen((value) => !value)}>
+          <button type="button" className="quiet-button" onClick={() => mission.setMapOpen((value) => !value)}>
             <Map size={18} />
             {copy.map}
           </button>
           <BackpackDrawer
-            open={backpackOpen}
+            open={mission.backpackOpen}
             labels={copy.backpack}
-            onToggle={() => setBackpackOpen((value) => !value)}
+            onToggle={() => mission.setBackpackOpen((value) => !value)}
           />
-          <button type="button" className="quiet-button" onClick={askCharacter}>
+          <button type="button" className="quiet-button" onClick={mission.askCharacter}>
             <HelpCircle size={18} />
             {copy.askCharacter}
           </button>
@@ -406,11 +259,4 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
       </footer>
     </main>
   );
-}
-
-function characterPhaseFor(phase: ScenePlaybackPhase) {
-  if (phase === "speaker-entering") return "entering";
-  if (phase === "speaking") return "speaking";
-  if (phase === "speaker-exiting") return "exiting";
-  return "hidden";
 }

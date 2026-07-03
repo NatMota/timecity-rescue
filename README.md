@@ -81,6 +81,7 @@ pnpm lint
 pnpm build
 pnpm episode:alignment
 pnpm episode:pacing
+pnpm visual:surface
 pnpm persona:playthrough
 pnpm runtime:observability
 ```
@@ -92,6 +93,8 @@ Expected checks:
 - Student choices advance through Episode 1 without free-text input.
 - Episode 1 follows the train-network pretotype route, concept coverage, backpack items, side-quest count, and passport evidence requirements.
 - Episode 1 stays inside the 35-45 minute pretotype pacing model.
+- Visual surface checks verify splash, avatar, room, character, dialogue, choice, backpack, map, side-quest, and bilingual UI assets without requiring browser automation.
+- Student scene rendering delegates phase, intro, feedback, and choice orchestration to the game director layer.
 - Persona playthroughs finish Episode 1 and generate Agent Builder Passports with route, backpack, and side-quest evidence.
 - Teacher dashboard refreshes progress and can override a selected pupil.
 - Completed pupils can generate an Agent Builder Passport.
