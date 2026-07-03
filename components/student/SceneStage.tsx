@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowLeft, PauseCircle, Play, Printer, ShieldCheck } from "lucide-react";
+import { ArrowLeft, HelpCircle, Map, Play, Printer, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
 import { RoomBackground } from "@/components/shared/RoomBackground";
 import { SceneCharacterLayer } from "@/components/shared/SceneCharacterLayer";
+import { ROOM_SEQUENCE, ROOM_TITLES } from "@/lib/game/fixedGraph";
 import { BadgeRibbon } from "./BadgeRibbon";
 import { BackpackDrawer } from "./BackpackDrawer";
 import { ChoiceButtons } from "./ChoiceButtons";
 import { ClueButton } from "./ClueButton";
 import { LanguageToggle } from "./LanguageToggle";
+import { SideQuestPanel } from "./SideQuestPanel";
 import { useScenePlayback, type ScenePlaybackPhase } from "./useScenePlayback";
-import type { Language, ScenePayload, StudentRecord } from "@/lib/game/types";
+import { useStudentMissionRuntime } from "./useStudentMissionRuntime";
+import type { Language } from "@/lib/game/types";
 
 const codenames = ["ChronoCadet Blue", "ChronoCadet Spark", "ChronoCadet Gear", "ChronoCadet Nova"];
 const avatarChoices = [
@@ -45,7 +48,10 @@ const uiText = {
     loading: "Preparing your TimeCity scene...",
     episode: "Episode 1 - The Missing Minute",
     print: "Generate Mission Goal Card",
-    pause: "Pause / Exit",
+    exit: "Exit",
+    restart: "Restart",
+    map: "Map",
+    askCharacter: "Ask character",
     footer: "The child never chats freely with AI. The AI adapts inside a teacher-controlled sandbox.",
     clueFallback: "Use a support button if you want a safer next step.",
     readAgain: "Read Again",
@@ -82,7 +88,10 @@ const uiText = {
     loading: "正在准备你的 TimeCity 场景...",
     episode: "第一集 - 消失的一分钟",
     print: "生成任务目标卡",
-    pause: "暂停 / 退出",
+    exit: "退出",
+    restart: "重新开始",
+    map: "地图",
+    askCharacter: "询问角色",
     footer: "孩子不会与 AI 自由聊天。AI 只会在教师控制的沙盒中调整内容。",
     clueFallback: "如果你想要更安全的下一步，可以使用帮助按钮。",
     readAgain: "再读一遍",
@@ -108,20 +117,43 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
   const [startTransition, setStartTransition] = useState<"idle" | "fading">("idle");
   const [displayName] = useState(codenames[0]);
   const [avatarColor, setAvatarColor] = useState(avatarChoices[0].id);
-  const [student, setStudent] = useState<StudentRecord | null>(null);
-  const [scene, setScene] = useState<ScenePayload | null>(null);
-  const [pendingStudent, setPendingStudent] = useState<StudentRecord | null>(null);
-  const [pendingScene, setPendingScene] = useState<ScenePayload | null>(null);
-  const [choiceFeedback, setChoiceFeedback] = useState<{ text: string; completed: boolean } | null>(null);
-  const [supportText, setSupportText] = useState("");
-  const [backpackOpen, setBackpackOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [startedAt, setStartedAt] = useState(Date.now());
-  const firstChoiceAtRef = useRef<number | null>(null);
-  const supportCountsRef = useRef({ clue_count: 0, read_again_count: 0 });
-
   const sessionCode = useMemo(() => initialSessionCode.toUpperCase(), [initialSessionCode]);
   const copy = uiText[language] as typeof uiText.en;
+  const runtime = useStudentMissionRuntime({
+    sessionCode,
+    displayName,
+    avatarColor,
+    language,
+    setLanguage,
+    onExit: () => setStartStep("splash"),
+    text: { defaultClue: copy.defaultClue },
+  });
+  const {
+    student,
+    scene,
+    choiceFeedback,
+    supportText,
+    backpackOpen,
+    mapOpen,
+    busy,
+    playback: gamePlayback,
+    sideQuest,
+    sideQuestComplete,
+    sideQuestResult,
+    setBackpackOpen,
+    setMapOpen,
+    join,
+    changeLanguage,
+    submitChoice,
+    applyPendingScene,
+    signal,
+    askCharacter,
+    chooseSideQuest,
+    exitMission,
+    restartMission,
+    printMemento,
+    markFirstChoicePreview,
+  } = runtime;
   const selectedAvatar = avatarChoices.find((avatar) => avatar.id === avatarColor) ?? avatarChoices[0];
   const selectedAvatarLabel = selectedAvatar[language];
   const introDialogue =
@@ -129,7 +161,6 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
       ? `欢迎来到 TimeCity 火车站，${displayName}。我是 Ada 教授。你的 ${selectedAvatarLabel} 头像已准备好。COG-9 正在站台等你，我们要找回消失的一分钟。`
       : `Welcome to TimeCity Station, ${displayName}. I'm Professor Ada. Your ${selectedAvatarLabel} avatar is ready. COG-9 is waiting on the platform, and we need to find the missing minute.`;
   const introPlayback = useScenePlayback(startStep === "intro" ? `intro-${language}-${avatarColor}` : null);
-  const gamePlayback = useScenePlayback(scene ? scene.scene_id : null);
 
   function fadeToStep(nextStep: StartStep) {
     setStartTransition("fading");
@@ -137,135 +168,6 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
       setStartStep(nextStep);
       setStartTransition("idle");
     }, 680);
-  }
-
-  async function join() {
-    setBusy(true);
-    const response = await fetch("/api/student/join", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_code: sessionCode, display_name: displayName, avatar_color: avatarColor, language }),
-    });
-    const data = await response.json();
-    setStudent(data.student);
-    setLanguage(data.student.language);
-    setScene(undefinedToNull(data.scene));
-    await refreshState(data.student.id);
-    setBusy(false);
-  }
-
-  async function refreshState(studentId = student?.id) {
-    if (!studentId) return;
-    const response = await fetch(`/api/student/state?session_code=${sessionCode}&student_id=${studentId}`);
-    const data = await response.json();
-    setStudent(data.student);
-    setScene(data.scene);
-    resetSceneTelemetry();
-  }
-
-  async function changeLanguage(nextLanguage: Language) {
-    setLanguage(nextLanguage);
-    if (!student) return;
-    setBusy(true);
-    const response = await fetch("/api/student/language", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_code: sessionCode, student_id: student.id, language: nextLanguage }),
-    });
-    const data = await response.json();
-    setStudent(data.student);
-    setScene(data.scene);
-    setSupportText("");
-    resetSceneTelemetry();
-    setBusy(false);
-  }
-
-  function resetSceneTelemetry() {
-    setStartedAt(Date.now());
-    firstChoiceAtRef.current = null;
-    supportCountsRef.current = { clue_count: 0, read_again_count: 0 };
-  }
-
-  function markFirstChoicePreview() {
-    firstChoiceAtRef.current = firstChoiceAtRef.current ?? Date.now();
-  }
-
-  async function submit(choiceId: string) {
-    if (!student || !scene) return;
-    setBusy(true);
-    const submittedAt = Date.now();
-    const sceneElapsedMs = submittedAt - startedAt;
-    const response = await fetch("/api/choice/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_code: sessionCode,
-        student_id: student.id,
-        node_key: scene.node_key,
-        room_slug: scene.room_slug,
-        choice_id: choiceId,
-        response_ms: sceneElapsedMs,
-        scene_elapsed_ms: sceneElapsedMs,
-        first_choice_ms: (firstChoiceAtRef.current ?? submittedAt) - startedAt,
-        clue_count: supportCountsRef.current.clue_count,
-        read_again_count: supportCountsRef.current.read_again_count,
-      }),
-    });
-    const data = await response.json();
-    setPendingStudent(data.student);
-    setPendingScene(data.scene);
-    setChoiceFeedback({ text: data.consequence, completed: Boolean(data.completed) });
-    setSupportText("");
-    gamePlayback.setPhase("feedback");
-    setBusy(false);
-  }
-
-  function applyPendingScene() {
-    if (!pendingStudent || !pendingScene) return;
-    setStudent(pendingStudent);
-    setScene(pendingScene);
-    setPendingStudent(null);
-    setPendingScene(null);
-    setChoiceFeedback(null);
-    resetSceneTelemetry();
-    gamePlayback.replaySpeech();
-  }
-
-  async function signal(type: "clue_count" | "read_again_count") {
-    if (!student || !scene) return;
-    supportCountsRef.current = {
-      ...supportCountsRef.current,
-      [type]: supportCountsRef.current[type] + 1,
-    };
-    await fetch("/api/student/state", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_code: sessionCode,
-        student_id: student.id,
-        signal: type,
-        node_key: scene.node_key,
-        room_slug: scene.room_slug,
-        scene_elapsed_ms: Date.now() - startedAt,
-      }),
-    });
-    setSupportText(type === "clue_count" ? scene.clue?.text || copy.defaultClue : scene.dialogue.read_again_text);
-    await refreshState(student.id);
-  }
-
-  async function printMemento() {
-    if (!student) return;
-    const response = await fetch("/api/memento/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_code: sessionCode, student_id: student.id }),
-    });
-    const data = await response.json();
-    const win = window.open("", "_blank", "noopener,noreferrer");
-    if (win) {
-      win.document.write(data.html);
-      win.document.close();
-    }
   }
 
   if (!student || !scene) {
@@ -424,14 +326,18 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
               </p>
             </div>
           ) : (
-            <ChoiceButtons choices={scene.choices} disabled={busy} onPreview={markFirstChoicePreview} onChoose={submit} />
+            <ChoiceButtons choices={scene.choices} disabled={busy} onPreview={markFirstChoicePreview} onChoose={submitChoice} />
           )}
-          <div className="mission-tools">
-            <BackpackDrawer
-              open={backpackOpen}
-              labels={copy.backpack}
-              onToggle={() => setBackpackOpen((value) => !value)}
+          {sideQuest ? (
+            <SideQuestPanel
+              sideQuest={sideQuest}
+              complete={sideQuestComplete}
+              result={sideQuestResult}
+              disabled={busy}
+              onChoose={chooseSideQuest}
             />
+          ) : null}
+          <div className="mission-tools">
             <ClueButton
               clue={supportText}
               readAgain={scene.dialogue.read_again_text}
@@ -451,11 +357,51 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         </section>
       ) : null}
 
+      {mapOpen ? (
+        <aside className="map-overlay" aria-label={copy.map}>
+          <div className="map-panel">
+            <div className="map-panel-heading">
+              <p className="eyebrow">{copy.map}</p>
+              <button type="button" className="quiet-button" onClick={() => setMapOpen(false)}>
+                <XCircle size={18} />
+                {copy.exit}
+              </button>
+            </div>
+            <ol>
+              {ROOM_SEQUENCE.map((room) => (
+                <li key={room} className={room === scene.room_slug ? "is-current" : ""}>
+                  <span>{ROOM_TITLES[room]}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
+      ) : null}
+
       <footer className="student-footer">
-        <button type="button" className="quiet-button">
-          <PauseCircle size={18} />
-          {copy.pause}
-        </button>
+        <div className="student-nav-actions">
+          <button type="button" className="quiet-button" onClick={exitMission}>
+            <XCircle size={18} />
+            {copy.exit}
+          </button>
+          <button type="button" className="quiet-button" onClick={restartMission}>
+            <RotateCcw size={18} />
+            {copy.restart}
+          </button>
+          <button type="button" className="quiet-button" onClick={() => setMapOpen((value) => !value)}>
+            <Map size={18} />
+            {copy.map}
+          </button>
+          <BackpackDrawer
+            open={backpackOpen}
+            labels={copy.backpack}
+            onToggle={() => setBackpackOpen((value) => !value)}
+          />
+          <button type="button" className="quiet-button" onClick={askCharacter}>
+            <HelpCircle size={18} />
+            {copy.askCharacter}
+          </button>
+        </div>
         <p>{copy.footer}</p>
       </footer>
     </main>
@@ -467,8 +413,4 @@ function characterPhaseFor(phase: ScenePlaybackPhase) {
   if (phase === "speaking") return "speaking";
   if (phase === "speaker-exiting") return "exiting";
   return "hidden";
-}
-
-function undefinedToNull<T>(value: T | undefined): T | null {
-  return value ?? null;
 }
