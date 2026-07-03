@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   const sessionCode = String(body.session_code || "").toUpperCase();
   const studentId = String(body.student_id || "");
   const { student } = await findStudent(sessionCode, studentId);
-  const name = student?.display_name || String(body.display_name || "ChronoCadet");
+  const card = createMissionGoalCard(student ?? String(body.display_name || "ChronoCadet"));
   await logClickstreamEvent({
     sessionCode,
     studentId,
@@ -19,7 +19,10 @@ export async function POST(request: Request) {
     roomSlug: student?.current_room_slug,
     metadata: {
       badge_progress: student?.badge_progress,
+      visited_room_slugs: student?.visited_room_slugs,
+      used_backpack_items: student?.used_backpack_items,
+      completed_side_quest_ids: student?.completed_side_quest_ids,
     },
   });
-  return NextResponse.json({ card: createMissionGoalCard(name), html: missionGoalCardHtml(name) });
+  return NextResponse.json({ card, html: missionGoalCardHtml(card) });
 }

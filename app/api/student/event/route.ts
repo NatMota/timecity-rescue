@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordStudentEvent } from "@/lib/game/sessionStore";
 import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function POST(request: Request) {
@@ -9,6 +10,8 @@ export async function POST(request: Request) {
   if (!sessionCode || !studentId || !eventType) {
     return NextResponse.json({ error: "Missing event fields" }, { status: 400 });
   }
+  const metadata = typeof body.metadata === "object" && body.metadata ? body.metadata : {};
+  const result = await recordStudentEvent(sessionCode, studentId, eventType, metadata);
 
   await logClickstreamEvent({
     sessionCode,
@@ -19,8 +22,8 @@ export async function POST(request: Request) {
     roomSlug: String(body.room_slug || ""),
     choiceId: String(body.choice_id || ""),
     sceneElapsedMs: Number(body.scene_elapsed_ms),
-    metadata: typeof body.metadata === "object" && body.metadata ? body.metadata : {},
+    metadata,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, student: result?.student });
 }

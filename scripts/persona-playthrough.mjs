@@ -73,6 +73,12 @@ const personas = [
   },
 ];
 
+const sideQuestIdsByNode = {
+  H1_N04: "cargo-cleanup",
+  H1_N07: "loop-trace",
+  H1_N10: "telegraph-tidy",
+};
+
 async function main() {
   const results = [];
   for (const persona of personas) {
@@ -132,7 +138,8 @@ async function runPersona(persona) {
       await supportSignal(sessionCode, student.id, scene, "clue_count", persona.responseMs);
       supportUses.clue += 1;
     }
-    if (["H1_N04", "H1_N07", "H1_N10"].includes(scene.node_key) && attempts === 0) {
+    const sideQuestId = sideQuestIdsByNode[scene.node_key];
+    if (sideQuestId && attempts === 0) {
       await post("/api/student/event", {
         session_code: sessionCode,
         student_id: student.id,
@@ -141,7 +148,7 @@ async function runPersona(persona) {
         room_slug: scene.room_slug,
         choice_id: "A",
         scene_elapsed_ms: persona.responseMs,
-        metadata: { side_quest_id: `persona-${scene.node_key}`, correct: true },
+        metadata: { side_quest_id: sideQuestId, correct: true },
       });
       sideQuests += 1;
     }
@@ -185,6 +192,9 @@ async function runPersona(persona) {
     student.badge_progress === 100 &&
     student.current_node_key === "H1_N24" &&
     /Agent Builder Passport/.test(memento.html) &&
+    memento.card?.routeTaken?.length >= 7 &&
+    memento.card?.backpackItemsUsed?.length >= 5 &&
+    memento.card?.sideQuestsCompleted?.length >= 3 &&
     transcript.some((entry) => entry.completed);
 
   return {
@@ -204,6 +214,9 @@ async function runPersona(persona) {
     memento: {
       badgeEarned: memento.card?.badgeEarned,
       hasPassportHtml: /Agent Builder Passport/.test(memento.html),
+      routeTaken: memento.card?.routeTaken,
+      backpackItemsUsed: memento.card?.backpackItemsUsed,
+      sideQuestsCompleted: memento.card?.sideQuestsCompleted,
     },
   };
 }
@@ -300,6 +313,11 @@ function summarizeReport(report, file) {
       correct: result.correct,
       wrong: result.wrong,
       sideQuests: result.sideQuests,
+      passport: {
+        routeStops: result.memento.routeTaken?.length ?? 0,
+        backpackItems: result.memento.backpackItemsUsed?.length ?? 0,
+        sideQuests: result.memento.sideQuestsCompleted?.length ?? 0,
+      },
       judge: result.llmJudge
         ? result.llmJudge.skipped
           ? {

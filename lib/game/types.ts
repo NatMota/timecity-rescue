@@ -108,6 +108,9 @@ export type StudentRecord = {
   current_room_slug: string;
   badge_progress: number;
   backpack_items: string[];
+  used_backpack_items: string[];
+  visited_room_slugs: string[];
+  completed_side_quest_ids: string[];
   clue_count: number;
   read_again_count: number;
   correct_count: number;
@@ -140,11 +143,19 @@ export type ClassSession = {
 export type MissionGoalCard = {
   chronoCadetName: string;
   mission: "TimeCity Rescue";
+  avatarColor: string;
+  routeTaken: string[];
+  cityLocationsVisited: string[];
+  backpackItemsUsed: string[];
+  sideQuestsCompleted: string[];
+  fixedStatement: string;
+  learnedStatement: string;
   cog9Goal: string;
   importantInput: string;
   safeRule: string;
   expectedOutput: string;
   shouldNotDo: string;
   checkedBeforeActing: string;
+  nextMissionTeaser: string;
   badgeEarned: "Goal Badge" | "Route Badge" | "Data Badge" | "Debug Badge" | "Agent Badge";
 };

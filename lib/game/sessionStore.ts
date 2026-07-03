@@ -7,6 +7,7 @@ import {
   joinDemoSession as joinMemorySession,
   listDemoSessions,
   overrideStudent as overrideMemoryStudent,
+  recordStudentEvent as recordMemoryStudentEvent,
   saveDemoSession,
   submitChoice as submitMemoryChoice,
   updateStudentLanguage as updateMemoryStudentLanguage,
@@ -142,6 +143,18 @@ export async function incrementStudentSignal(
 ) {
   await loadSession(sessionCode);
   const result = incrementMemoryStudentSignal(normalizeCode(sessionCode), studentId, signal);
+  if (result) await persistSession(result.session);
+  return result;
+}
+
+export async function recordStudentEvent(
+  sessionCode: string,
+  studentId: string,
+  eventType: string,
+  metadata: Record<string, unknown> = {},
+) {
+  await loadSession(sessionCode);
+  const result = recordMemoryStudentEvent(normalizeCode(sessionCode), studentId, eventType, metadata);
   if (result) await persistSession(result.session);
   return result;
 }

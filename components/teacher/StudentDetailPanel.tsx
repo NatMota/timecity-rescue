@@ -33,6 +33,12 @@ export function StudentDetailPanel({
         <dd>{student.read_again_count}</dd>
         <dt>Clues</dt>
         <dd>{student.clue_count}</dd>
+        <dt>Rooms visited</dt>
+        <dd>{student.visited_room_slugs?.length || 1}</dd>
+        <dt>Backpack items used</dt>
+        <dd>{student.used_backpack_items?.length ? student.used_backpack_items.join(", ") : "None yet"}</dd>
+        <dt>Side quests</dt>
+        <dd>{student.completed_side_quest_ids?.length ? student.completed_side_quest_ids.join(", ") : "None completed"}</dd>
         <dt>Recommended prompt</dt>
         <dd>{teacherRecommendedPrompt(student)}</dd>
       </dl>

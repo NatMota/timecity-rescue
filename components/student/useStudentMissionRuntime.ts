@@ -50,7 +50,9 @@ export function useStudentMissionRuntime({
   const playback = useScenePlayback(scene ? scene.scene_id : null);
   const sideQuest = useMemo(() => (scene ? getSideQuestForNode(scene.node_key, language) : null), [language, scene]);
   const activeSideQuestResult = sideQuestResult?.sideQuestId === sideQuest?.id ? sideQuestResult : null;
-  const sideQuestComplete = Boolean(sideQuest && completedSideQuestIds.includes(sideQuest.id));
+  const sideQuestComplete = Boolean(
+    sideQuest && (completedSideQuestIds.includes(sideQuest.id) || student?.completed_side_quest_ids?.includes(sideQuest.id)),
+  );
 
   async function join() {
     setBusy(true);
@@ -205,7 +207,7 @@ export function useStudentMissionRuntime({
       correct,
       text: correct ? sideQuest.success : sideQuest.retry,
     });
-    await fetch("/api/student/event", {
+    const response = await fetch("/api/student/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -222,6 +224,8 @@ export function useStudentMissionRuntime({
         },
       }),
     });
+    const data = await response.json().catch(() => ({}));
+    if (data.student) setStudent(data.student);
   }
 
   function exitMission() {
