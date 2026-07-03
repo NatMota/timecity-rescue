@@ -73,6 +73,9 @@ The current deployed runtime persists classroom state in `session_snapshots`. It
 ```bash
 pnpm lint
 pnpm build
+pnpm episode:pacing
+pnpm persona:playthrough
+pnpm runtime:observability
 ```
 
 Expected checks:
@@ -80,8 +83,18 @@ Expected checks:
 - Teacher can create a session and copy a join link.
 - Student can join with a preset codename, language, and avatar colour.
 - Student choices advance through Episode 1 without free-text input.
+- Episode 1 stays inside the 35-45 minute pretotype pacing model.
+- Persona playthroughs finish Episode 1 and generate Agent Builder Passports with route, backpack, and side-quest evidence.
 - Teacher dashboard refreshes progress and can override a selected pupil.
-- Completed pupils can generate a mission goal card.
+- Completed pupils can generate an Agent Builder Passport.
+- Runtime observability reports whether OpenAI, Langfuse, and Supabase telemetry are configured, without printing secret values.
+
+Optional hard gates:
+
+```bash
+pnpm persona:playthrough -- --judge --require-judge
+pnpm runtime:observability -- --require-openai --require-langfuse --require-supabase-telemetry
+```
 
 ## Assets
 
