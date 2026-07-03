@@ -13,6 +13,8 @@
     "runtime:observability": "node scripts/runtime-observability.mjs",
     "visual:surface": "node scripts/visual-surface.mjs",
     "episode:plans": "node scripts/plan-invariants.mjs",
+    "eval:browser-images": "node scripts/browser-image-evals.mjs",
+    "eval:browser-images:production": "node scripts/browser-image-evals.mjs --base=https://timecity-rescue.vercel.app --environment=production",
     "verify:pretotype": "node scripts/verify-pretotype.mjs"
   },
   "dependencies": {
