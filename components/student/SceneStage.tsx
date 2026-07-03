@@ -4,7 +4,6 @@ import Image from "next/image";
 import { ArrowLeft, HelpCircle, Map, Play, Printer, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
 import { RoomBackground } from "@/components/shared/RoomBackground";
 import { SceneCharacterLayer } from "@/components/shared/SceneCharacterLayer";
-import { ROOM_SEQUENCE, ROOM_TITLES } from "@/lib/game/fixedGraph";
 import { BadgeRibbon } from "./BadgeRibbon";
 import { BackpackDrawer } from "./BackpackDrawer";
 import { ChoiceButtons } from "./ChoiceButtons";
@@ -163,67 +162,65 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
 
       {mission.showChoices && mission.choiceSurface ? (
         <section className="mission-panel mission-panel-overlay">
-          {mission.choiceSurface.complete ? (
+          {mission.choiceSurface.completion ? (
             <div className="completion-panel">
-              <p className="eyebrow">Agent Badge</p>
-              <h2>{language === "zh" ? "任务完成" : "Mission Complete"}</h2>
-              <p>
-                {language === "zh"
-                  ? "你已经准备好生成 Agent Builder Passport。"
-                  : "You are ready to generate your Agent Builder Passport."}
-              </p>
+              <p className="eyebrow">{mission.choiceSurface.completion.badgeLabel}</p>
+              <h2>{mission.choiceSurface.completion.title}</h2>
+              <p>{mission.choiceSurface.completion.body}</p>
             </div>
-          ) : (
+          ) : mission.choiceSurface.main ? (
             <ChoiceButtons
-              choices={mission.choiceSurface.choices}
-              disabled={mission.busy}
-              onPreview={mission.markFirstChoicePreview}
-              onChoose={mission.submitChoice}
-            />
-          )}
-          {mission.choiceSurface.sideQuest ? (
-            <SideQuestPanel
-              sideQuest={mission.choiceSurface.sideQuest}
-              complete={mission.choiceSurface.sideQuestComplete}
-              result={mission.choiceSurface.sideQuestResult}
-              disabled={mission.busy}
-              onChoose={mission.chooseSideQuest}
+              choices={mission.choiceSurface.main.choices}
+              disabled={mission.choiceSurface.main.disabled}
+              onPreview={mission.choiceSurface.main.onPreview}
+              onChoose={mission.choiceSurface.main.onChoose}
             />
           ) : null}
-          <div className="mission-tools">
-            <ClueButton
-              clue={mission.supportText}
-              readAgain={scene.dialogue.read_again_text}
-              readAgainLabel={copy.readAgain}
-              clueLabel={copy.clue}
-              fallbackText={copy.clueFallback}
-              onClue={() => mission.signal("clue_count")}
-              onReadAgain={() => mission.signal("read_again_count")}
+          {mission.choiceSurface.sideQuest ? (
+            <SideQuestPanel
+              sideQuest={mission.choiceSurface.sideQuest.sideQuest}
+              complete={mission.choiceSurface.sideQuest.complete}
+              result={mission.choiceSurface.sideQuest.result}
+              disabled={mission.choiceSurface.sideQuest.disabled}
+              onChoose={mission.choiceSurface.sideQuest.onChoose}
             />
-          </div>
-          {mission.choiceSurface.complete ? (
-            <button type="button" className="primary-action" onClick={mission.printMemento}>
+          ) : null}
+          {mission.choiceSurface.support ? (
+            <div className="mission-tools">
+              <ClueButton
+                clue={mission.choiceSurface.support.clue}
+                readAgain={mission.choiceSurface.support.readAgain}
+                readAgainLabel={mission.choiceSurface.support.readAgainLabel}
+                clueLabel={mission.choiceSurface.support.clueLabel}
+                fallbackText={mission.choiceSurface.support.fallbackText}
+                onClue={mission.choiceSurface.support.onClue}
+                onReadAgain={mission.choiceSurface.support.onReadAgain}
+              />
+            </div>
+          ) : null}
+          {mission.choiceSurface.completion ? (
+            <button type="button" className="primary-action" onClick={mission.choiceSurface.completion.onPrint}>
               <Printer size={20} />
-              {copy.print}
+              {mission.choiceSurface.completion.actionLabel}
             </button>
           ) : null}
         </section>
       ) : null}
 
-      {mission.mapOpen ? (
-        <aside className="map-overlay" aria-label={copy.map}>
+      {mission.mapSurface?.open ? (
+        <aside className="map-overlay" aria-label={mission.mapSurface.label}>
           <div className="map-panel">
             <div className="map-panel-heading">
-              <p className="eyebrow">{copy.map}</p>
-              <button type="button" className="quiet-button" onClick={() => mission.setMapOpen(false)}>
+              <p className="eyebrow">{mission.mapSurface.label}</p>
+              <button type="button" className="quiet-button" onClick={mission.mapSurface.close}>
                 <XCircle size={18} />
-                {copy.exit}
+                {mission.mapSurface.closeLabel}
               </button>
             </div>
             <ol>
-              {ROOM_SEQUENCE.map((room) => (
-                <li key={room} className={room === scene.room_slug ? "is-current" : ""}>
-                  <span>{ROOM_TITLES[room]}</span>
+              {mission.mapSurface.stops.map((stop) => (
+                <li key={stop.room} className={stop.current ? "is-current" : ""}>
+                  <span>{stop.title}</span>
                 </li>
               ))}
             </ol>
@@ -233,29 +230,29 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
 
       <footer className="student-footer">
         <div className="student-nav-actions">
-          <button type="button" className="quiet-button" onClick={mission.exit}>
+          <button type="button" className="quiet-button" onClick={mission.navigation.exit.onSelect}>
             <XCircle size={18} />
-            {copy.exit}
+            {mission.navigation.exit.label}
           </button>
-          <button type="button" className="quiet-button" onClick={mission.restart}>
+          <button type="button" className="quiet-button" onClick={mission.navigation.restart.onSelect}>
             <RotateCcw size={18} />
-            {copy.restart}
+            {mission.navigation.restart.label}
           </button>
-          <button type="button" className="quiet-button" onClick={() => mission.setMapOpen((value) => !value)}>
+          <button type="button" className="quiet-button" onClick={mission.navigation.map.onSelect}>
             <Map size={18} />
-            {copy.map}
+            {mission.navigation.map.label}
           </button>
           <BackpackDrawer
-            open={mission.backpackOpen}
-            labels={copy.backpack}
-            onToggle={() => mission.setBackpackOpen((value) => !value)}
+            open={mission.navigation.backpack.open}
+            labels={mission.navigation.backpack.labels}
+            onToggle={mission.navigation.backpack.onToggle}
           />
-          <button type="button" className="quiet-button" onClick={mission.askCharacter}>
+          <button type="button" className="quiet-button" onClick={mission.navigation.askCharacter.onSelect}>
             <HelpCircle size={18} />
-            {copy.askCharacter}
+            {mission.navigation.askCharacter.label}
           </button>
         </div>
-        <p>{copy.footer}</p>
+        <p>{mission.navigation.footer}</p>
       </footer>
     </main>
   );

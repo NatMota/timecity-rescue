@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useScenePlayback, type ScenePlaybackPhase } from "./useScenePlayback";
 import { useStudentMissionRuntime } from "./useStudentMissionRuntime";
 import type { CharacterPlaybackPhase } from "@/components/shared/SceneCharacterLayer";
+import { ROOM_SEQUENCE, ROOM_TITLES } from "@/lib/game/fixedGraph";
 import type { Language } from "@/lib/game/types";
 
 const codenames = ["ChronoCadet Blue", "ChronoCadet Spark", "ChronoCadet Gear", "ChronoCadet Nova"];
@@ -184,16 +185,85 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
   }, []);
 
   const missionPhase = runtime.playback.phase;
-  const missionChoiceSurface =
-    runtime.student && runtime.scene && missionPhase === "choices"
+  const completionSurface =
+    runtime.student && runtime.student.badge_progress >= 100
       ? {
-          complete: runtime.student.badge_progress >= 100,
-          choices: runtime.scene.choices,
-          sideQuest: runtime.sideQuest,
-          sideQuestComplete: runtime.sideQuestComplete,
-          sideQuestResult: runtime.sideQuestResult,
+          title: language === "zh" ? "任务完成" : "Mission Complete",
+          body: language === "zh" ? "你已经准备好生成 Agent Builder Passport。" : "You are ready to generate your Agent Builder Passport.",
+          badgeLabel: "Agent Badge",
+          actionLabel: copy.print,
+          onPrint: runtime.printMemento,
         }
       : null;
+  const supportSurface = runtime.scene
+    ? {
+        clue: runtime.supportText,
+        readAgain: runtime.scene.dialogue.read_again_text,
+        readAgainLabel: copy.readAgain,
+        clueLabel: copy.clue,
+        fallbackText: copy.clueFallback,
+        onClue: () => runtime.signal("clue_count"),
+        onReadAgain: () => runtime.signal("read_again_count"),
+      }
+    : null;
+  const mainChoiceSurface =
+    runtime.scene && missionPhase === "choices" && !completionSurface
+      ? {
+          choices: runtime.scene.choices,
+          disabled: runtime.busy,
+          onPreview: runtime.markFirstChoicePreview,
+          onChoose: runtime.submitChoice,
+        }
+      : null;
+  const sideQuestSurface =
+    runtime.sideQuest && missionPhase === "choices"
+      ? {
+          sideQuest: runtime.sideQuest,
+          complete: runtime.sideQuestComplete,
+          result: runtime.sideQuestResult,
+          disabled: runtime.busy,
+          onChoose: runtime.chooseSideQuest,
+        }
+      : null;
+  const choiceSurface =
+    runtime.student && runtime.scene && missionPhase === "choices"
+      ? {
+          complete: Boolean(completionSurface),
+          main: mainChoiceSurface,
+          sideQuest: sideQuestSurface,
+          support: supportSurface,
+          completion: completionSurface,
+        }
+      : null;
+  const mapSurface = runtime.scene
+    ? {
+        open: runtime.mapOpen,
+        label: copy.map,
+        closeLabel: copy.exit,
+        close: () => runtime.setMapOpen(false),
+        stops: ROOM_SEQUENCE.map((room) => ({
+          room,
+          title: ROOM_TITLES[room],
+          current: room === runtime.scene?.room_slug,
+        })),
+      }
+    : null;
+  const navigation = {
+    exit: { label: copy.exit, onSelect: runtime.exitMission },
+    restart: { label: copy.restart, onSelect: runtime.restartMission },
+    map: {
+      label: copy.map,
+      active: runtime.mapOpen,
+      onSelect: () => runtime.setMapOpen((value) => !value),
+    },
+    backpack: {
+      open: runtime.backpackOpen,
+      labels: copy.backpack,
+      onToggle: () => runtime.setBackpackOpen((value) => !value),
+    },
+    askCharacter: { label: copy.askCharacter, onSelect: runtime.askCharacter },
+    footer: copy.footer,
+  };
 
   return {
     screen: runtime.student && runtime.scene ? "mission" : runtime.student ? "loading" : "start",
@@ -237,25 +307,15 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
       showDialogue: missionPhase === "speaking",
       showFeedback: missionPhase === "feedback" && Boolean(runtime.choiceFeedback),
       showChoices: missionPhase === "choices",
-      choiceSurface: missionChoiceSurface,
+      choiceSurface,
+      supportSurface,
+      mapSurface,
+      navigation,
       choiceFeedback: runtime.choiceFeedback,
-      supportText: runtime.supportText,
-      backpackOpen: runtime.backpackOpen,
-      mapOpen: runtime.mapOpen,
       busy: runtime.busy,
-      setBackpackOpen: runtime.setBackpackOpen,
-      setMapOpen: runtime.setMapOpen,
       changeLanguage: runtime.changeLanguage,
       continueDialogue: runtime.playback.advanceToChoices,
-      submitChoice: runtime.submitChoice,
       applyPendingScene: runtime.applyPendingScene,
-      signal: runtime.signal,
-      askCharacter: runtime.askCharacter,
-      chooseSideQuest: runtime.chooseSideQuest,
-      exit: runtime.exitMission,
-      restart: runtime.restartMission,
-      printMemento: runtime.printMemento,
-      markFirstChoicePreview: runtime.markFirstChoicePreview,
     },
   };
 }

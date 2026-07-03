@@ -51,7 +51,12 @@ const requiredDirectorTokens = [
   "useScenePlayback",
   "StartStep",
   "fadeToStep",
-  "missionChoiceSurface",
+  "mainChoiceSurface",
+  "sideQuestSurface",
+  "supportSurface",
+  "completionSurface",
+  "mapSurface",
+  "navigation",
   "showDialogue",
   "showFeedback",
   "showChoices",
@@ -123,18 +128,23 @@ const checks = [
       !sceneStage.includes("useState(") &&
       !sceneStage.includes("useScenePlayback") &&
       !sceneStage.includes("useStudentMissionRuntime") &&
-      !sceneStage.includes("window.setTimeout"),
+      !sceneStage.includes("window.setTimeout") &&
+      !sceneStage.includes("ROOM_SEQUENCE") &&
+      !sceneStage.includes("ROOM_TITLES") &&
+      !sceneStage.includes("runtime."),
     value: {
       usesDirector: sceneStage.includes("useStudentGameDirector"),
       hasUseState: sceneStage.includes("useState("),
       hasScenePlayback: sceneStage.includes("useScenePlayback"),
       hasMissionRuntime: sceneStage.includes("useStudentMissionRuntime"),
       hasTimer: sceneStage.includes("window.setTimeout"),
+      hasRouteRules: sceneStage.includes("ROOM_SEQUENCE") || sceneStage.includes("ROOM_TITLES"),
+      hasRuntimeAccess: sceneStage.includes("runtime."),
     },
-    expected: "SceneStage renders the director model without owning timers or runtime hooks",
+    expected: "SceneStage renders the director model without owning timers, route rules, or runtime hooks",
   },
   {
-    label: "Student game director owns scene, intro, feedback, and choice phases",
+    label: "Student game director owns scene, intro, feedback, choices, support, map, and nav surfaces",
     pass: requiredDirectorTokens.every((token) => gameDirector.includes(token)),
     value: missingTokens(requiredDirectorTokens, gameDirector),
     expected: "no missing director orchestration tokens",
