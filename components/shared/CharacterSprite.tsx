@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { Bot, GraduationCap, Sparkles } from "lucide-react";
 import Image from "next/image";
+import { getCharacterImage } from "./characterAssets";
 import type { CharacterSlug, CharacterState } from "@/lib/game/types";
 
 const config = {
@@ -25,21 +26,4 @@ export function CharacterSprite({ character, state }: { character: CharacterSlug
       </div>
     </div>
   );
-}
-
-function getCharacterImage(character: CharacterSlug, state: CharacterState) {
-  if (character === "ada") {
-    return state === "thinking" || state === "uncertain"
-      ? "/assets/characters/ada-future-thinking.png"
-      : "/assets/characters/ada-future-neutral.png";
-  }
-  if (character === "cog9") {
-    return state === "warning" || state === "uncertain"
-      ? "/assets/characters/cog9-future-worried.png"
-      : "/assets/characters/cog9-future-neutral.png";
-  }
-  if (character === "nix") {
-    return state === "caught" ? "/assets/characters/nix-future-caught.png" : "/assets/characters/nix-future-tempting.png";
-  }
-  return null;
 }
