@@ -17,6 +17,10 @@ const checks = [
     command: [process.execPath, "scripts/episode-pacing.mjs"],
   },
   {
+    name: "Plan invariants",
+    command: [process.execPath, "scripts/plan-invariants.mjs"],
+  },
+  {
     name: "Visual surface",
     command: [process.execPath, "scripts/visual-surface.mjs"],
   },

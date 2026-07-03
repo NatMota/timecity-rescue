@@ -925,8 +925,8 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "encouraging",
       "Professor Ada",
-      "Your Station Helper Agent is ready. What should your passport say you built?",
-      "You built an agent with a goal, inputs, tools, rules, safety checks, and feedback.",
+      "Your Station Helper Agent is ready, and TimeCity has its missing minute back. What should your passport say you built?",
+      "You restored the missing minute by building an agent with a goal, inputs, tools, rules, safety checks, and feedback.",
       choices([
         ["A", "An agent that chooses safe train routes using data, rules, and a human check.", "why"],
         ["B", "A chatbot that can say anything to anyone.", "why"],
