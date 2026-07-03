@@ -2,6 +2,7 @@ import { badgeProgressForNode } from "./nextNode";
 import { evaluateChoice } from "./evaluateChoice";
 import { NODE_BY_KEY, FIRST_NODE_KEY } from "./fixedGraph";
 import { riskFlagsForStudent } from "./adaptDifficulty";
+import { runtimeSessionCode } from "@/lib/runtime/environment";
 import type { ClassSession, Language, MissionGoalCard, StudentRecord } from "./types";
 
 const BACKPACK_ITEM_LABELS: Record<string, string> = {
@@ -37,6 +38,10 @@ function id(prefix: string) {
 function sessionCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 4 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+}
+
+function normalizeSessionCode(code: string | null | undefined) {
+  return runtimeSessionCode(code);
 }
 
 function makeStudent(display_name: string, avatar_color: string, language: Language, node = FIRST_NODE_KEY): StudentRecord {
@@ -81,8 +86,8 @@ function recompute(student: StudentRecord): StudentRecord {
 }
 
 export function createDemoSession(language: Language = "en", requestedCode?: string): ClassSession {
-  let code = requestedCode?.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) || sessionCode();
-  while (store.has(code)) code = sessionCode();
+  let code = normalizeSessionCode(requestedCode || sessionCode());
+  while (store.has(code)) code = normalizeSessionCode(sessionCode());
   const stamp = now();
   const session: ClassSession = {
     id: id("session"),
@@ -106,12 +111,13 @@ export function createDemoSession(language: Language = "en", requestedCode?: str
 }
 
 export function getDemoSession(code: string) {
-  return store.get(code.toUpperCase());
+  return store.get(normalizeSessionCode(code));
 }
 
 export function saveDemoSession(session: ClassSession) {
-  store.set(session.session_code, session);
-  return session;
+  const normalized = { ...session, session_code: normalizeSessionCode(session.session_code) };
+  store.set(normalized.session_code, normalized);
+  return normalized;
 }
 
 export function listDemoSessions() {

@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isSandboxMode, sandboxSessionLikePattern } from "@/lib/runtime/environment";
 import type { ClassSession, StudentRecord } from "@/lib/game/types";
 
 type JsonRecord = Record<string, unknown>;
@@ -305,27 +306,34 @@ export async function getTeamDashboardData(): Promise<TeamDashboardData> {
     };
   }
 
-  const [snapshotResult, clickResult, generationResult] = await Promise.all([
-    supabase
-      .from("session_snapshots")
-      .select("session_code,payload,created_at,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(40),
-    supabase
-      .from("clickstream_events")
-      .select(
-        "session_code,student_id,actor,event_type,route,node_key,room_slug,choice_classification,response_ms,scene_elapsed_ms,first_choice_ms,clue_count,read_again_count,metadata,created_at",
-      )
-      .order("created_at", { ascending: false })
-      .limit(800),
-    supabase
-      .from("llm_generation_events")
-      .select(
-        "session_code,student_id,node_key,room_slug,language,model,resolved_model,prompt_chars,latency_ms,success,used_fallback,validation_errors,error_message,usage_details,created_at",
-      )
-      .order("created_at", { ascending: false })
-      .limit(800),
-  ]);
+  let snapshotQuery = supabase
+    .from("session_snapshots")
+    .select("session_code,payload,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(40);
+  let clickQuery = supabase
+    .from("clickstream_events")
+    .select(
+      "session_code,student_id,actor,event_type,route,node_key,room_slug,choice_classification,response_ms,scene_elapsed_ms,first_choice_ms,clue_count,read_again_count,metadata,created_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(800);
+  let generationQuery = supabase
+    .from("llm_generation_events")
+    .select(
+      "session_code,student_id,node_key,room_slug,language,model,resolved_model,prompt_chars,latency_ms,success,used_fallback,validation_errors,error_message,usage_details,created_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(800);
+
+  if (isSandboxMode()) {
+    const pattern = sandboxSessionLikePattern();
+    snapshotQuery = snapshotQuery.like("session_code", pattern);
+    clickQuery = clickQuery.like("session_code", pattern);
+    generationQuery = generationQuery.like("session_code", pattern);
+  }
+
+  const [snapshotResult, clickResult, generationResult] = await Promise.all([snapshotQuery, clickQuery, generationQuery]);
 
   [snapshotResult.error, clickResult.error, generationResult.error]
     .filter(Boolean)

@@ -26,6 +26,9 @@ const env = {
   supabaseServiceRole: has("SUPABASE_SERVICE_ROLE_KEY") || has("SUPABASE_SECRET_KEY"),
   clerkPublic: has("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"),
   clerkSecret: has("CLERK_SECRET_KEY"),
+  timecityEnvironment: process.env.TIMECITY_ENVIRONMENT || "unset",
+  timecitySandbox: truthy(process.env.TIMECITY_SANDBOX_MODE),
+  timecitySandboxPrefix: process.env.TIMECITY_SANDBOX_SESSION_PREFIX || "SBX",
 };
 
 async function main() {
@@ -67,6 +70,11 @@ async function main() {
           ? "configured for clickstream and LLM generation events"
           : "not configured; local in-memory mode",
     },
+    {
+      label: "Sandbox flag prefixes runtime sessions when enabled",
+      pass: !env.timecitySandbox || api.sessionCode?.startsWith(`${env.timecitySandboxPrefix}_`),
+      detail: env.timecitySandbox ? api.sessionCode || "no session code returned" : "sandbox mode disabled",
+    },
   ];
 
   const report = {
@@ -95,6 +103,7 @@ async function probeStudentApi() {
     const scene = state.scene;
     return {
       joinOk: Boolean(join.student?.id),
+      sessionCode: join.session?.session_code,
       stateOk: Boolean(scene?.node_key),
       nodeKey: scene?.node_key,
       roomSlug: scene?.room_slug,
@@ -122,11 +131,11 @@ async function probeStudentApi() {
 
 function runtimeMode() {
   if (env.openai && env.langfusePublic && env.langfuseSecret && env.supabaseUrl && env.supabaseServiceRole) {
-    return "openai_langfuse_supabase";
+    return env.timecitySandbox ? "openai_langfuse_supabase_sandbox" : "openai_langfuse_supabase";
   }
-  if (env.openai && env.supabaseUrl && env.supabaseServiceRole) return "openai_supabase";
-  if (env.openai) return "openai_memory";
-  return "deterministic_fallback_memory";
+  if (env.openai && env.supabaseUrl && env.supabaseServiceRole) return env.timecitySandbox ? "openai_supabase_sandbox" : "openai_supabase";
+  if (env.openai) return env.timecitySandbox ? "openai_memory_sandbox" : "openai_memory";
+  return env.timecitySandbox ? "deterministic_fallback_memory_sandbox" : "deterministic_fallback_memory";
 }
 
 async function post(pathname, body) {
@@ -151,6 +160,10 @@ async function parseResponse(response, pathname) {
 
 function has(name) {
   return Boolean(process.env[name]);
+}
+
+function truthy(value) {
+  return ["1", "true", "yes", "on", "sandbox"].includes(String(value || "").trim().toLowerCase());
 }
 
 function loadEnvFile(file) {

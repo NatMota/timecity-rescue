@@ -46,6 +46,8 @@ NEXT_PUBLIC_DEMO_MODE=true
 
 Clerk is required for the deployed teacher dashboard. Pupil routes under `/play/*` stay public so learners can join a teacher-led session without accounts. Account creation is not exposed in the app; create or invite teacher accounts from Clerk.
 
+For production-backed testing, set `TIMECITY_SANDBOX_MODE=true`, `TIMECITY_ENVIRONMENT=sandbox`, and `TIMECITY_SANDBOX_SESSION_PREFIX=SBX`. New session codes are stored as `SBX_*`, Supabase telemetry is tagged with the sandbox environment, Langfuse traces include sandbox tags, and the team dashboard filters to sandbox sessions when sandbox mode is enabled.
+
 ## Supabase
 
 The schema is in `supabase/migrations/001_init.sql` and the Episode 1 seed data is in `supabase/seed/episode1_nodes.sql`.

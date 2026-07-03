@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const result = await incrementStudentSignal(sessionCode, studentId, signal);
   if (!result) return NextResponse.json({ error: "Student not found" }, { status: 404 });
   await logClickstreamEvent({
-    sessionCode,
+    sessionCode: result.session.session_code,
     studentId,
     eventType: signal === "clue_count" ? "support_clue" : "support_read_again",
     route: "/api/student/state",

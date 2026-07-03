@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { observeOpenAI } from "@langfuse/openai";
+import { runtimeTags } from "@/lib/runtime/environment";
 
 export function hasOpenAI() {
   return Boolean(process.env.OPENAI_API_KEY);
@@ -16,7 +17,7 @@ export function getOpenAIClient() {
   return observeOpenAI(client, {
     traceName: "timecity-scene-generation",
     generationName: "timecity-scene-generation",
-    tags: ["timecity", "scene-generation"],
+    tags: runtimeTags("scene-generation"),
   });
 }
 

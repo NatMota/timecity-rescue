@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   );
   if (!result) return NextResponse.json({ error: "Student not found" }, { status: 404 });
   await logClickstreamEvent({
-    sessionCode,
+    sessionCode: result.session.session_code,
     studentId,
     eventType: "choice_submit",
     route: "/api/choice/submit",
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       risk_flags: result.student.risk_flags,
     },
   });
-  const scene = await generateScene(sessionCode, result.student.current_node_key, result.student.language, result.student);
+  const scene = await generateScene(result.session.session_code, result.student.current_node_key, result.student.language, result.student);
   return NextResponse.json({
     student: result.student,
     classification: result.evaluation.classification,

@@ -8,10 +8,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const sessionCode = String(body.session_code || "").toUpperCase();
   const studentId = String(body.student_id || "");
-  const { student } = await findStudent(sessionCode, studentId);
+  const { session, student } = await findStudent(sessionCode, studentId);
   const card = createMissionGoalCard(student ?? String(body.display_name || "ChronoCadet"));
   await logClickstreamEvent({
-    sessionCode,
+    sessionCode: session?.session_code || sessionCode,
     studentId,
     eventType: "memento_generate",
     route: "/api/memento/generate",

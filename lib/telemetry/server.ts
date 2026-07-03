@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { runtimeSessionCode, runtimeTelemetryMetadata } from "@/lib/runtime/environment";
 import type { Language, ScenePayload } from "@/lib/game/types";
 
 type JsonRecord = Record<string, unknown>;
@@ -61,7 +62,7 @@ function finiteNumber(value: number | undefined) {
 }
 
 function normalizeSessionCode(value: string | undefined) {
-  const normalized = String(value || "").toUpperCase();
+  const normalized = runtimeSessionCode(value);
   return normalized || null;
 }
 
@@ -101,7 +102,7 @@ export async function logClickstreamEvent(input: ClickstreamEventInput) {
     first_choice_ms: finiteNumber(input.firstChoiceMs),
     clue_count: finiteNumber(input.clueCount),
     read_again_count: finiteNumber(input.readAgainCount),
-    metadata: compactRecord(input.metadata),
+    metadata: compactRecord(runtimeTelemetryMetadata(input.metadata)),
   });
 
   if (error) console.error("Failed to log TimeCity clickstream event", error.message);
@@ -126,7 +127,7 @@ export async function logLlmGenerationEvent(input: LlmGenerationEventInput) {
     used_fallback: input.usedFallback,
     validation_errors: input.validationErrors || [],
     error_message: input.errorMessage || null,
-    usage_details: compactRecord(input.usageDetails),
+    usage_details: compactRecord(runtimeTelemetryMetadata(input.usageDetails)),
     scene_payload: input.scenePayload || null,
   });
 

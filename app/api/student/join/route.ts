@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { joinSession } from "@/lib/game/sessionStore";
 import { logClickstreamEvent } from "@/lib/telemetry/server";
+import { runtimeSessionCode } from "@/lib/runtime/environment";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const code = String(body.session_code || "").toUpperCase();
+  const code = runtimeSessionCode(String(body.session_code || ""));
   if (!code) return NextResponse.json({ error: "Session code required" }, { status: 400 });
   const result = await joinSession(
     code,
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     body.language === "zh" ? "zh" : "en",
   );
   await logClickstreamEvent({
-    sessionCode: code,
+    sessionCode: result.session.session_code,
     studentId: result.student.id,
     eventType: "student_join",
     route: "/api/student/join",

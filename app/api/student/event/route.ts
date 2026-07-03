@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const result = await recordStudentEvent(sessionCode, studentId, eventType, metadata);
 
   await logClickstreamEvent({
-    sessionCode,
+    sessionCode: result?.session.session_code || sessionCode,
     studentId,
     eventType,
     route: "/api/student/event",

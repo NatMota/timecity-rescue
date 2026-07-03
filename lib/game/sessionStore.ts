@@ -1,5 +1,12 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
+  isSandboxMode,
+  isSandboxSessionCode,
+  runtimeSessionCode,
+  runtimeTelemetryMetadata,
+  sandboxSessionLikePattern,
+} from "@/lib/runtime/environment";
+import {
   createDemoSession,
   findStudent as findMemoryStudent,
   getDemoSession,
@@ -16,17 +23,21 @@ import {
 import type { ClassSession, Language } from "./types";
 
 function normalizeCode(code: string | null | undefined) {
-  return String(code || "").toUpperCase();
+  return runtimeSessionCode(code);
 }
 
 async function persistSession(session: ClassSession) {
   const supabase = getSupabaseAdminClient();
   if (!supabase) return;
+  if (isSandboxMode() && !isSandboxSessionCode(session.session_code)) {
+    console.error("Refusing to persist non-sandbox TimeCity session while sandbox mode is enabled");
+    return;
+  }
 
   const { error } = await supabase.from("session_snapshots").upsert(
     {
       session_code: session.session_code,
-      payload: session,
+      payload: runtimeTelemetryMetadata(session as unknown as Record<string, unknown>),
       created_at: session.created_at,
       updated_at: session.updated_at,
     },
@@ -59,12 +70,15 @@ async function loadLatestSessionFromSupabase() {
   const supabase = getSupabaseAdminClient();
   if (!supabase) return null;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("session_snapshots")
     .select("payload")
     .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  if (isSandboxMode()) query = query.like("session_code", sandboxSessionLikePattern());
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.error("Failed to load latest TimeCity session", error.message);
@@ -95,7 +109,11 @@ export async function ensureSession(code?: string | null) {
   }
 
   const latestLocal = listDemoSessions()[0];
-  if (latestLocal) return latestLocal;
+  if (latestLocal && (!isSandboxMode() || isSandboxSessionCode(latestLocal.session_code))) return latestLocal;
+  if (latestLocal && isSandboxMode()) {
+    const sandboxLocal = listDemoSessions().find((session) => isSandboxSessionCode(session.session_code));
+    if (sandboxLocal) return sandboxLocal;
+  }
 
   const latestRemote = await loadLatestSessionFromSupabase();
   if (latestRemote) return latestRemote;
