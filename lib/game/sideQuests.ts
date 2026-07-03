@@ -47,8 +47,8 @@ const SIDE_QUESTS: Record<string, Record<Language, SideQuest>> = {
       prompt: "Trace the charger loop. Which signal proves the loop can stop?",
       choices: [
         { id: "A", text: "The battery-full reading", correct: true },
-        { id: "B", text: "The colour of the warning light", correct: false },
-        { id: "C", text: "How excited COG-9 feels", correct: false },
+        { id: "B", text: "How loud the charger sounds", correct: false },
+        { id: "C", text: "A fixed repeat count without checking power", correct: false },
       ],
       success: "Debug Wrench found the stopping condition.",
       retry: "A loop stops because of a condition, not a feeling or decoration.",
@@ -60,8 +60,8 @@ const SIDE_QUESTS: Record<string, Record<Language, SideQuest>> = {
       prompt: "追踪充电器循环。哪个信号证明循环可以停止？",
       choices: [
         { id: "A", text: "电池已足够满的读数", correct: true },
-        { id: "B", text: "警示灯的颜色", correct: false },
-        { id: "C", text: "COG-9 有多兴奋", correct: false },
+        { id: "B", text: "充电器声音有多大", correct: false },
+        { id: "C", text: "不检查电力的固定重复次数", correct: false },
       ],
       success: "调试扳手找到了停止条件。",
       retry: "循环因为条件而停止，不是因为感觉或装饰。",

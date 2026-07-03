@@ -3,6 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
+import { z } from "zod";
 
 const args = new Set(process.argv.slice(2));
 const argValue = (name, fallback) => {
@@ -15,7 +17,19 @@ loadEnvFile(".env.local");
 const baseUrl = argValue("--base", process.env.TIMECITY_BASE_URL || "http://localhost:3001");
 const maxSteps = Number(argValue("--max-steps", "50"));
 const useJudge = args.has("--judge");
+const requireJudge = args.has("--require-judge");
 const model = process.env.OPENAI_EVAL_MODEL || process.env.OPENAI_MODEL || "gpt-4.1";
+
+const JudgeSchema = z.object({
+  age_fit_score_1_to_5: z.number().min(1).max(5),
+  objective_score_1_to_5: z.number().min(1).max(5),
+  bug_risk: z.enum(["low", "medium", "high"]),
+  confusion_risk: z.enum(["low", "medium", "high"]),
+  looks_like_game_score_1_to_5: z.number().min(1).max(5),
+  too_easy_nodes: z.array(z.string()),
+  too_confusing_nodes: z.array(z.string()),
+  recommendations: z.array(z.string()),
+});
 
 const personas = [
   {
@@ -74,10 +88,12 @@ async function main() {
   const report = {
     generatedAt: new Date().toISOString(),
     baseUrl,
-    judge: useJudge ? { model } : null,
+    judge: useJudge ? { model, required: requireJudge } : null,
     results,
-    pass: results.every((result) => result.pass),
   };
+  report.mechanicsPass = results.every((result) => result.pass);
+  report.judgePass = !useJudge || results.every((result) => judgeResultPasses(result.llmJudge, requireJudge));
+  report.pass = report.mechanicsPass && report.judgePass;
   fs.mkdirSync("artifacts", { recursive: true });
   const file = path.join("artifacts", `persona-playthrough-${Date.now()}.json`);
   fs.writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`);
@@ -208,12 +224,15 @@ async function judgePlaythrough(result) {
     choice: entry.choice.text,
     classification: entry.classification,
   }));
-  const response = await client.responses.create({
+  const response = await client.responses.parse({
     model,
+    text: {
+      format: zodTextFormat(JudgeSchema, "persona_playthrough_judge"),
+    },
     input: [
       "You are evaluating a classroom-safe AI/coding adventure for 9-10-year-olds.",
-      "Judge whether this persona could finish without bugs, whether the content supports agent-building objectives, and whether anything looks too confusing or too easy.",
-      "Return strict JSON with keys: age_fit_score_1_to_5, objective_score_1_to_5, bug_risk, confusion_risk, recommendations.",
+      "Judge whether this persona could finish without bugs, whether the content supports agent-building objectives, whether it feels like a game rather than a quiz, and whether anything looks too confusing or too easy.",
+      "The UI has full-screen illustrated rooms, character cutouts, dialogue overlays, fixed nav buttons, a backpack, map, side quests, and no open text input. You are judging from the transcript and stated UI, not a screenshot.",
       JSON.stringify({
         persona: result.persona,
         profile: result.profile,
@@ -227,7 +246,11 @@ async function judgePlaythrough(result) {
       }),
     ].join("\n\n"),
   });
-  return parseJsonish(response.output_text || "{}");
+  const parsed = response.output_parsed ?? parseJsonish(response.output_text || "{}");
+  return {
+    ...parsed,
+    pass: judgeResultPasses(parsed, true),
+  };
 }
 
 async function supportSignal(sessionCode, studentId, scene, signal, elapsedMs) {
@@ -264,6 +287,8 @@ async function parseResponse(response, pathname) {
 function summarizeReport(report, file) {
   return {
     pass: report.pass,
+    mechanicsPass: report.mechanicsPass,
+    judgePass: report.judgePass,
     file,
     baseUrl: report.baseUrl,
     judge: report.judge,
@@ -284,8 +309,10 @@ function summarizeReport(report, file) {
           : {
             ageFit: result.llmJudge.age_fit_score_1_to_5,
             objective: result.llmJudge.objective_score_1_to_5,
+            gameFeel: result.llmJudge.looks_like_game_score_1_to_5,
             bugRisk: result.llmJudge.bug_risk,
             confusionRisk: result.llmJudge.confusion_risk,
+            pass: result.llmJudge.pass,
           }
         : undefined,
     })),
@@ -303,6 +330,18 @@ function loadEnvFile(file) {
     const value = trimmed.slice(index + 1).replace(/^['"]|['"]$/g, "");
     process.env[key] ||= value;
   }
+}
+
+function judgeResultPasses(judge, required) {
+  if (!judge) return !required;
+  if (judge.skipped) return !required;
+  return (
+    judge.age_fit_score_1_to_5 >= 4 &&
+    judge.objective_score_1_to_5 >= 4 &&
+    judge.looks_like_game_score_1_to_5 >= 4 &&
+    judge.bug_risk !== "high" &&
+    judge.confusion_risk !== "high"
+  );
 }
 
 function parseJsonish(text) {
