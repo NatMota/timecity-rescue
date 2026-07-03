@@ -71,6 +71,12 @@ The current deployed runtime persists classroom state in `session_snapshots`. It
 ## Verification
 
 ```bash
+pnpm verify:pretotype
+```
+
+The combined verifier runs the core local evidence set:
+
+```bash
 pnpm lint
 pnpm build
 pnpm episode:pacing
@@ -94,6 +100,7 @@ Optional hard gates:
 ```bash
 pnpm persona:playthrough -- --judge --require-judge
 pnpm runtime:observability -- --require-openai --require-langfuse --require-supabase-telemetry
+pnpm verify:pretotype -- --require-judge --require-observability
 ```
 
 ## Assets

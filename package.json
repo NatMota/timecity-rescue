@@ -9,7 +9,8 @@
     "lint": "eslint",
     "episode:pacing": "node scripts/episode-pacing.mjs",
     "persona:playthrough": "node scripts/persona-playthrough.mjs",
-    "runtime:observability": "node scripts/runtime-observability.mjs"
+    "runtime:observability": "node scripts/runtime-observability.mjs",
+    "verify:pretotype": "node scripts/verify-pretotype.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.12",
