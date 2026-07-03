@@ -9,6 +9,7 @@ import {
   overrideStudent as overrideMemoryStudent,
   saveDemoSession,
   submitChoice as submitMemoryChoice,
+  updateStudentLanguage as updateMemoryStudentLanguage,
   updateSessionStatus as updateMemorySessionStatus,
 } from "./demoStore";
 import type { ClassSession, Language } from "./types";
@@ -123,6 +124,13 @@ export async function updateSessionStatus(code: string, status: ClassSession["st
 export async function submitChoice(sessionCode: string, studentId: string, choiceId: string, responseMs = 2500) {
   await loadSession(sessionCode);
   const result = submitMemoryChoice(normalizeCode(sessionCode), studentId, choiceId, responseMs);
+  if (result) await persistSession(result.session);
+  return result;
+}
+
+export async function updateStudentLanguage(sessionCode: string, studentId: string, language: Language) {
+  await loadSession(sessionCode);
+  const result = updateMemoryStudentLanguage(normalizeCode(sessionCode), studentId, language);
   if (result) await persistSession(result.session);
   return result;
 }

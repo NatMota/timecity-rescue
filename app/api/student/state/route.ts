@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { ensureSession, findStudent, incrementStudentSignal } from "@/lib/game/sessionStore";
-import { getFallbackScene } from "@/lib/game/fallbackScenes";
+import { generateScene } from "@/lib/openai/generateScene";
 import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function GET(request: Request) {
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   }
   const session = await ensureSession(sessionCode);
   const student = studentId ? (await findStudent(session.session_code, studentId)).student : undefined;
-  const scene = student ? getFallbackScene(student.current_node_key, student.language) : undefined;
+  const scene = student ? await generateScene(session.session_code, student.current_node_key, student.language, student) : undefined;
   return NextResponse.json({ session, student, scene });
 }
 

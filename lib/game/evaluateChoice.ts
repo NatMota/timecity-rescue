@@ -1,5 +1,5 @@
 import { NODE_BY_KEY } from "./fixedGraph";
-import type { ChoiceClassification } from "./types";
+import type { ChoiceClassification, Language } from "./types";
 
 export type ChoiceEvaluation = {
   classification: ChoiceClassification;
@@ -15,7 +15,18 @@ const CONSEQUENCES: Record<ChoiceClassification, string> = {
   wrong: "That caused a useful debug clue. Let's test the idea with a smaller step.",
 };
 
-export function evaluateChoice(nodeKey: string, choiceId: string): ChoiceEvaluation {
+const ZH_CONSEQUENCES: Record<ChoiceClassification, string> = {
+  best: "这个选择让 COG-9 更安全地思考。TimeCity 暂时稳定了。",
+  partial: "这给了一个有用的调试线索。Ada 会帮你把它连接到更安全的规则。",
+  misconception: "Nix 找到了捷径，但捷径需要先检查。换一种方式使用线索。",
+  wrong: "这给了一个有用的调试线索。让我们用更小的一步测试这个想法。",
+};
+
+function consequenceFor(classification: ChoiceClassification, language: Language) {
+  return language === "zh" ? ZH_CONSEQUENCES[classification] : CONSEQUENCES[classification];
+}
+
+export function evaluateChoice(nodeKey: string, choiceId: string, language: Language = "en"): ChoiceEvaluation {
   const node = NODE_BY_KEY[nodeKey] ?? NODE_BY_KEY.H1_N01;
   const key = node.evaluation_key;
 
@@ -23,7 +34,7 @@ export function evaluateChoice(nodeKey: string, choiceId: string): ChoiceEvaluat
     return {
       classification: "best",
       nextNodeKey: key.next_node_if_best,
-      consequence: CONSEQUENCES.best,
+      consequence: consequenceFor("best", language),
     };
   }
 
@@ -32,7 +43,7 @@ export function evaluateChoice(nodeKey: string, choiceId: string): ChoiceEvaluat
       classification: "partial",
       misconception: key.misconception_map[choiceId],
       nextNodeKey: key.next_node_if_partial,
-      consequence: CONSEQUENCES.partial,
+      consequence: consequenceFor("partial", language),
     };
   }
 
@@ -41,13 +52,13 @@ export function evaluateChoice(nodeKey: string, choiceId: string): ChoiceEvaluat
       classification: "misconception",
       misconception: key.misconception_map[choiceId],
       nextNodeKey: key.next_node_if_retry,
-      consequence: CONSEQUENCES.misconception,
+      consequence: consequenceFor("misconception", language),
     };
   }
 
   return {
     classification: "wrong",
     nextNodeKey: key.next_node_if_retry,
-    consequence: CONSEQUENCES.wrong,
+    consequence: consequenceFor("wrong", language),
   };
 }

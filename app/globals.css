@@ -629,15 +629,64 @@ a {
   padding: 18px 0 40px;
 }
 
-.join-shell {
-  display: grid;
+.student-splash,
+.student-experience {
+  position: relative;
   min-height: 100vh;
-  place-items: center;
+  overflow: hidden;
 }
 
-.join-card {
+.student-splash {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.student-splash-art {
+  object-fit: cover;
+}
+
+.student-splash-scrim,
+.scene-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.student-splash-scrim {
+  background:
+    linear-gradient(90deg, rgba(2, 10, 25, 0.78), rgba(2, 10, 25, 0.18) 58%, rgba(2, 10, 25, 0.62)),
+    linear-gradient(180deg, rgba(2, 10, 25, 0.1), rgba(2, 10, 25, 0.52));
+}
+
+.scene-scrim {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(2, 10, 25, 0.36), rgba(2, 10, 25, 0.02) 42%, rgba(2, 10, 25, 0.48)),
+    linear-gradient(180deg, rgba(2, 10, 25, 0.08), rgba(2, 10, 25, 0.38));
+}
+
+.join-card,
+.loading-panel {
+  position: relative;
+  z-index: 2;
   width: min(760px, 100%);
   padding: 28px;
+}
+
+.splash-card,
+.loading-panel {
+  margin-right: auto;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
+.loading-panel h1 {
+  margin: 0;
+  font-size: 2rem;
 }
 
 .join-card h1 {
@@ -694,7 +743,7 @@ a {
 .student-topbar {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.94);
@@ -725,6 +774,25 @@ a {
 .segmented button {
   border: 0;
   border-radius: 7px;
+}
+
+.student-experience {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+}
+
+.student-experience .room-background {
+  z-index: 0;
+}
+
+.student-experience .student-topbar {
+  position: relative;
+  top: auto;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  box-shadow: 0 10px 30px rgba(18, 32, 51, 0.08);
 }
 
 .scene-layout {
@@ -837,7 +905,8 @@ a {
 
 .character-card {
   position: absolute;
-  bottom: 36px;
+  z-index: 2;
+  bottom: 96px;
   left: 28px;
   display: flex;
   width: min(360px, calc(100% - 56px));
@@ -893,6 +962,17 @@ a {
   flex-direction: column;
   gap: 14px;
   padding: 18px;
+}
+
+.mission-panel-overlay {
+  z-index: 2;
+  width: min(600px, 100%);
+  min-height: 0;
+  max-height: calc(100vh - 178px);
+  margin: auto min(3vw, 42px) 0 auto;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
 }
 
 .dialogue-panel {
@@ -984,11 +1064,18 @@ a {
 
 .student-footer {
   display: flex;
+  position: relative;
+  z-index: 2;
   gap: 14px;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16px;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
   color: var(--muted);
+  padding: 10px 12px;
+  backdrop-filter: blur(12px);
 }
 
 @media (max-width: 900px) {
@@ -1021,5 +1108,24 @@ a {
   .stage-card,
   .mission-panel {
     min-height: 520px;
+  }
+
+  .student-experience {
+    min-height: 100svh;
+    padding: 12px;
+  }
+
+  .mission-panel-overlay {
+    width: 100%;
+    max-height: none;
+    margin: auto 0 0;
+  }
+
+  .student-experience .character-card {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    width: min(360px, 100%);
+    margin-top: auto;
   }
 }

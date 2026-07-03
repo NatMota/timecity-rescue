@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { submitChoice } from "@/lib/game/sessionStore";
-import { getFallbackScene } from "@/lib/game/fallbackScenes";
+import { generateScene } from "@/lib/openai/generateScene";
 import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function POST(request: Request) {
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       risk_flags: result.student.risk_flags,
     },
   });
-  const scene = getFallbackScene(result.student.current_node_key, result.student.language);
+  const scene = await generateScene(sessionCode, result.student.current_node_key, result.student.language, result.student);
   return NextResponse.json({
     student: result.student,
     classification: result.evaluation.classification,

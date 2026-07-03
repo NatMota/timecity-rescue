@@ -20,6 +20,8 @@ Rigid invariants:
 - Correct answers often require a why or evidence follow-up.
 - Keep text short and age-appropriate.
 - Preserve the fixed learning objective: an AI agent needs a goal, inputs, rules and outputs before safe action.
+- If language is "en", every user-visible string must be in English.
+- If language is "zh", every user-visible string must be in Simplified Chinese, including dialogue, read-again text, clue text, and choices.
 
 Current fixed node:
 ${JSON.stringify(

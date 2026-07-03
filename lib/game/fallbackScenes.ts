@@ -27,6 +27,19 @@ const ZH_CHOICES: Record<string, string[]> = {
   H1_N10: ["跟随信号去电报办公室。", "再次按自动修复。", "永远收起指南针。"],
 };
 
+const ZH_CLUES: Record<string, string> = {
+  H1_N01: "Ada 说，好的系统要从清楚的目的开始。",
+  H1_N02: "目标应该足够具体，才能指导下一步安全行动。",
+  H1_N03: "捷径可能有用，但只有在你知道它会造成什么影响之后。",
+  H1_N04: "重复记录是有用的输入证据，因为系统正在循环。",
+  H1_N05: "问一问：系统在改变东西之前先读取了什么？",
+  H1_N06: "任务指南针帮助找出安全行动的部分：目标、输入、规则和输出。",
+  H1_N07: "安全规则通常先检查目标和证据。",
+  H1_N08: "好的“为什么”答案会说明这个选择怎样让 COG-9 更安全、更有用。",
+  H1_N09: "有帮助的智能体仍然需要人的判断和有用线索。",
+  H1_N10: "安全的下一步会跟随线索，而不是跟随捷径。",
+};
+
 export function getFallbackScene(nodeKey: string, language: Language): ScenePayload {
   const node = NODE_BY_KEY[nodeKey] ?? NODE_BY_KEY.H1_N01;
   if (language === "en") return node.fallback;
@@ -42,5 +55,11 @@ export function getFallbackScene(nodeKey: string, language: Language): ScenePayl
       ...choice,
       text: ZH_CHOICES[node.node_key]?.[index] ?? choice.text,
     })),
+    clue: node.fallback.clue
+      ? {
+          ...node.fallback.clue,
+          text: ZH_CLUES[node.node_key] ?? node.fallback.clue.text,
+        }
+      : node.fallback.clue,
   };
 }

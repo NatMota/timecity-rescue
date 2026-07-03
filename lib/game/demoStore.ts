@@ -133,7 +133,7 @@ export function findStudent(sessionCodeValue: string, studentId: string) {
 export function submitChoice(sessionCodeValue: string, studentId: string, choiceId: string, responseMs = 2500) {
   const { session, student } = findStudent(sessionCodeValue, studentId);
   if (!session || !student) return null;
-  const evaluation = evaluateChoice(student.current_node_key, choiceId);
+  const evaluation = evaluateChoice(student.current_node_key, choiceId, student.language);
   const correctish = evaluation.classification === "best" || evaluation.classification === "partial";
   const nextNodeKey = evaluation.nextNodeKey;
   const completed = nextNodeKey === "COMPLETE";
@@ -156,6 +156,16 @@ export function submitChoice(sessionCodeValue: string, studentId: string, choice
   session.updated_at = now();
   store.set(session.session_code, session);
   return { session, student: updated, evaluation, completed };
+}
+
+export function updateStudentLanguage(sessionCodeValue: string, studentId: string, language: Language) {
+  const { session, student } = findStudent(sessionCodeValue, studentId);
+  if (!session || !student) return null;
+  const updated = recompute({ ...student, language });
+  session.students = session.students.map((item) => (item.id === studentId ? updated : item));
+  session.updated_at = now();
+  store.set(session.session_code, session);
+  return { session, student: updated };
 }
 
 export function incrementStudentSignal(
