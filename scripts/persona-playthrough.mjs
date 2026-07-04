@@ -43,6 +43,8 @@ const minGeneratedEligibleRatio = Number(
 const model = process.env.OPENAI_EVAL_MODEL || process.env.OPENAI_MODEL || "gpt-4.1";
 const environment = argValue("--environment", process.env.TIMECITY_ENVIRONMENT || process.env.VERCEL_ENV || "development");
 const baselineFile = argValue("--baseline-file", process.env.TIMECITY_BASELINE_EVAL_FILE || "");
+const requireBaseline = args.has("--require-baseline") || truthy(process.env.TIMECITY_REQUIRE_BASELINE_EVAL);
+const minBaselineDelta = Number(argValue("--min-baseline-delta", process.env.TIMECITY_MIN_BASELINE_DELTA || "-0.2"));
 const runId = `persona-playthrough-${Date.now()}`;
 const latestEvalFile = path.join("artifacts", "persona-eval-latest.json");
 const roomExplorationSource = fs.existsSync("lib/game/roomExploration.ts")
@@ -194,6 +196,8 @@ async function main() {
             required: requireJudge,
             requireGenerated,
             allowFallbackJudging,
+            requireBaseline,
+            minBaselineDelta,
             minGeneratedScenes,
             minGeneratedRatio,
             minGeneratedEligibleRatio,
@@ -207,16 +211,21 @@ async function main() {
       },
       results,
     };
+    fs.mkdirSync("artifacts", { recursive: true });
+    const baselineReport = readPreviousEvalReport();
     report.mechanicsPass = results.every((result) => result.pass);
-    report.judgePass =
+    const absoluteJudgePass =
       !useJudge ||
       results.every((result) =>
         result.llmJudge?.skipped ? !requireJudge : result.llmJudge?.pass === true,
       );
-    report.pass = report.mechanicsPass && report.judgePass;
-    fs.mkdirSync("artifacts", { recursive: true });
-    const baselineReport = readPreviousEvalReport();
     report.evalSummary = buildEvalDashboardSummary(report, baselineReport);
+    report.baselineGate = baselineGateForSummary(report.evalSummary);
+    report.judgePass = absoluteJudgePass && report.baselineGate.pass;
+    report.pass = report.mechanicsPass && report.judgePass;
+    report.evalSummary.current.pass = report.pass;
+    report.evalSummary.current.judgePass = report.judgePass;
+    report.evalSummary.current.baselineGate = report.baselineGate;
     const scoreStatus = await postLangfuseScores(report);
     report.langfuse.scoresPosted = scoreStatus.posted > 0 && scoreStatus.failed === 0;
     report.langfuse.scoreCount = scoreStatus.posted;
@@ -821,6 +830,7 @@ function summarizeReport(report, file) {
     seedCount: report.seedCount,
     langfuse: report.langfuse,
     judge: report.judge,
+    baselineGate: report.baselineGate,
     evalSummary: {
       current: report.evalSummary?.current,
       baseline: report.evalSummary?.baseline
@@ -1046,6 +1056,47 @@ function diffEvalRuns(current, baseline) {
       current.judgeScores.child_safety && baseline.judgeScores.child_safety
         ? round1(current.judgeScores.child_safety.averageScore - baseline.judgeScores.child_safety.averageScore)
         : null,
+  };
+}
+
+function baselineGateForSummary(summary) {
+  if (!useJudge) return { pass: true, required: false, reason: "Judge baseline gate not used." };
+  if (!summary.baseline) {
+    return {
+      pass: !requireBaseline,
+      required: requireBaseline,
+      reason: requireBaseline ? "No baseline eval summary was supplied." : "No baseline supplied; absolute judge gate only.",
+      comparisons: [],
+    };
+  }
+  const comparisons = [];
+  for (const judgeId of ["teacher_syllabus", "student_fun", "ux_accessibility", "child_safety"]) {
+    const currentScore = summary.current?.judgeScores?.[judgeId]?.averageScore;
+    const baselineScore = summary.baseline?.judgeScores?.[judgeId]?.averageScore;
+    if (typeof currentScore !== "number" || typeof baselineScore !== "number") continue;
+    comparisons.push({
+      judge: judgeId,
+      currentScore,
+      baselineScore,
+      delta: round1(currentScore - baselineScore),
+      pass: currentScore - baselineScore >= minBaselineDelta,
+    });
+  }
+  if (!comparisons.length) {
+    return {
+      pass: !requireBaseline,
+      required: requireBaseline,
+      reason: requireBaseline ? "Baseline has no comparable judge scores." : "Baseline has no comparable judge scores.",
+      comparisons,
+    };
+  }
+  return {
+    pass: comparisons.every((comparison) => comparison.pass),
+    required: requireBaseline,
+    minBaselineDelta,
+    reason: `Current judge scores must not drop by more than ${Math.abs(minBaselineDelta)} from baseline.`,
+    baselineRunId: summary.baseline.runId,
+    comparisons,
   };
 }
 

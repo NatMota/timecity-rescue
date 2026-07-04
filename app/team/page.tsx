@@ -212,6 +212,7 @@ export default async function TeamDashboardPage() {
             <p className="eval-run-note">
               Current {evalCurrent.runId} · {formatDate(evalCurrent.generatedAt)}
               {evalBaseline ? ` · baseline ${evalBaseline.runId}` : ""}
+              {data.evals?.availability ? ` · source ${data.evals.availability.kind.replaceAll("_", " ")}` : ""}
             </p>
           </article>
 

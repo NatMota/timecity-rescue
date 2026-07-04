@@ -146,15 +146,16 @@ function adaptChoices(
 
   if (retryAttempt > 0) {
     const fastGuessRetry = isFastGuessRetry(student, retryAttempt);
-    if (fastGuessRetry) {
-      return rotateChoices(scene.choices, retryAttempt).map((choice) => focusRetryChoice(choice, retryAttempt));
-    }
     const lastChoice = student?.last_choice
       ? scene.choices.find((choice) => choice.id === student.last_choice && choice.id !== bestChoice.id)
       : undefined;
     const distractor =
       lastChoice ?? scene.choices.find((choice) => !node.evaluation_key.best_choice_ids.includes(choice.id));
-    return [bestChoice, distractor].filter(Boolean).map((choice) => softenRetryChoice(choice as Choice, retryAttempt));
+    const rewrite = fastGuessRetry ? focusRetryChoice : softenRetryChoice;
+    const retryChoices = fastGuessRetry
+      ? retryChoiceSpread(scene.choices, bestChoice, distractor as Choice | undefined)
+      : [bestChoice, distractor].filter(Boolean);
+    return retryChoices.map((choice) => rewrite(choice as Choice, retryAttempt));
   }
 
   if (difficulty === 1) {
@@ -187,12 +188,6 @@ function remediationText(retryAttempt: number, fastGuessRetry: boolean) {
   return "Ada rewinds the warning. The choices are still plausible, so use the clue before you pick.";
 }
 
-function rotateChoices(choices: Choice[], retryAttempt: number) {
-  if (choices.length <= 1) return choices;
-  const offset = choices.length === 2 ? 1 : (retryAttempt % (choices.length - 1)) + 1;
-  return [...choices.slice(offset), ...choices.slice(0, offset)];
-}
-
 function simplifyChoice(choice: Choice): Choice {
   return {
     ...choice,
@@ -214,6 +209,13 @@ function focusRetryChoice(choice: Choice, retryAttempt: number): Choice {
     ...choice,
     text: `${prefix}${choice.text.charAt(0).toLowerCase()}${choice.text.slice(1)}`,
   };
+}
+
+function retryChoiceSpread(choices: Choice[], bestChoice: Choice, primaryDistractor: Choice | undefined) {
+  const selected = [bestChoice, primaryDistractor].filter(Boolean) as Choice[];
+  const extra = choices.find((choice) => !selected.some((selectedChoice) => selectedChoice.id === choice.id));
+  if (extra) selected.push(extra);
+  return selected;
 }
 
 export function advancedDistractor(scene: ScenePayload): Choice {

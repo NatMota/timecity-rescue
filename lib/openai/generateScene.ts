@@ -4,7 +4,7 @@ import { buildScenePrompt } from "./scenePrompt";
 import { OpenAIScenePayloadSchema } from "./sceneSchema";
 import { validateScenePayload } from "./validateScene";
 import { advancedDistractor, getFallbackScene } from "@/lib/game/fallbackScenes";
-import { choiceSemanticForNode, choiceSemanticMapForNode, NODE_BY_KEY } from "@/lib/game/fixedGraph";
+import { choiceSemanticMapForNode, NODE_BY_KEY } from "@/lib/game/fixedGraph";
 import { difficultyForStudent } from "@/lib/game/adaptDifficulty";
 import { worldStateSummary } from "@/lib/game/worldState";
 import {
@@ -13,7 +13,7 @@ import {
   promptHash,
   summarizeOpenAIUsage,
 } from "@/lib/telemetry/server";
-import type { Language, ScenePayload, StudentRecord } from "@/lib/game/types";
+import type { Choice, Language, ScenePayload, StudentRecord } from "@/lib/game/types";
 
 type NullableGeneratedScene = ScenePayload & {
   backpack_prompt?: (NonNullable<ScenePayload["backpack_prompt"]> & { required_item_slug?: string | null }) | null;
@@ -131,11 +131,8 @@ export async function generateScene(
       });
       const latencyMs = Date.now() - startedAt;
       const parsed = normalizeGeneratedScene(response.output_parsed ?? JSON.parse(response.output_text));
-      const semanticErrors = semanticMapErrors(nodeKey, parsed as ScenePayload);
       const enriched = withServerSceneFields(parsed as ScenePayload, student);
-      const validated: { scene?: ScenePayload; errors: string[] } = semanticErrors.length
-        ? { errors: semanticErrors }
-        : validateScenePayload(enriched);
+      const validated = validateScenePayload(enriched);
       if (!validated.scene) {
         debugGeneration("validation failed", { nodeKey, errors: validated.errors });
       }
@@ -225,7 +222,7 @@ function withServerSceneFields(scene: ScenePayload, student: StudentRecord | nul
       : scene.choices;
   const choices =
     retryAttempt > 0
-      ? baseChoices.map((choice) => ({
+      ? retryChoiceSubset(scene.node_key, baseChoices, student, fastGuessRetry).map((choice) => ({
           ...choice,
           text: retryChoiceText(choice.text, retryAttempt, fastGuessRetry),
         }))
@@ -268,15 +265,19 @@ function retryChoiceText(text: string, retryAttempt: number, fastGuessRetry: boo
   return `${fastGuessRetry ? "Evidence check" : "Use the clue"}: ${text}`;
 }
 
-function semanticMapErrors(nodeKey: string, scene: ScenePayload) {
-  const errors: string[] = [];
-  if (!scene.choice_semantic_map) {
-    return ["Generated scene must return choice_semantic_map."];
+function retryChoiceSubset(nodeKey: string, choices: Choice[], student: StudentRecord | null, fastGuessRetry: boolean) {
+  const node = NODE_BY_KEY[nodeKey] ?? NODE_BY_KEY.H1_N01;
+  const bestChoice = choices.find((choice) => node.evaluation_key.best_choice_ids.includes(choice.id));
+  if (!bestChoice) return choices;
+  const lastWrongChoice = student?.last_choice
+    ? choices.find((choice) => choice.id === student.last_choice && !node.evaluation_key.best_choice_ids.includes(choice.id))
+    : undefined;
+  const distractor =
+    lastWrongChoice ?? choices.find((choice) => !node.evaluation_key.best_choice_ids.includes(choice.id));
+  const selected = [bestChoice, distractor].filter(Boolean) as Choice[];
+  if (fastGuessRetry) {
+    const extra = choices.find((choice) => !selected.some((selectedChoice) => selectedChoice.id === choice.id));
+    if (extra) selected.push(extra);
   }
-  for (const choice of scene.choices ?? []) {
-    if (scene.choice_semantic_map[choice.id] !== choiceSemanticForNode(nodeKey, choice.id)) {
-      errors.push(`Generated choice ${choice.id} semantic map mismatched the evaluation key.`);
-    }
-  }
-  return errors;
+  return selected;
 }

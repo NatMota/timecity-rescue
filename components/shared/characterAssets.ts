@@ -16,18 +16,21 @@ export function getCharacterImage(
   const era = options.era ?? "future";
   const cutout = Boolean(options.cutout);
   const prefix = cutout ? "/assets/characters/cutouts" : "/assets/characters";
+  const extension = cutout && era === "1800" ? "webp" : "png";
   if (character === "ada") {
     return state === "thinking" || state === "uncertain"
-      ? `${prefix}/ada-${era}-thinking.png`
-      : `${prefix}/ada-${era}-neutral.png`;
+      ? `${prefix}/ada-${era}-thinking.${extension}`
+      : `${prefix}/ada-${era}-neutral.${extension}`;
   }
   if (character === "cog9") {
     return state === "warning" || state === "uncertain"
-      ? `${prefix}/cog9-${era}-worried.png`
-      : `${prefix}/cog9-${era}-neutral.png`;
+      ? `${prefix}/cog9-${era}-worried.${extension}`
+      : `${prefix}/cog9-${era}-neutral.${extension}`;
   }
   if (character === "nix") {
-    return state === "caught" ? `${prefix}/nix-${era}-caught.png` : `${prefix}/nix-${era}-tempting.png`;
+    return state === "caught"
+      ? `${prefix}/nix-${era}-caught.${extension}`
+      : `${prefix}/nix-${era}-tempting.${extension}`;
   }
   return null;
 }

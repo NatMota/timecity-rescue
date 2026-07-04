@@ -142,6 +142,10 @@ export type TeamEvalSummary = {
   baseline: TeamEvalRunSummary | null;
   deltas: JsonRecord | null;
   personas: Array<JsonRecord>;
+  availability?: {
+    kind: "supabase_clickstream" | "local_artifact";
+    detail: string;
+  };
   supabaseLogged?: boolean;
   supabaseLogError?: string;
 };
@@ -359,12 +363,27 @@ function isEvalSummary(value: unknown): value is TeamEvalSummary {
   return typeof record.generatedAt === "string" && typeof record.source === "string" && "current" in record;
 }
 
-function readEvalArtifact() {
+function isDeploymentRuntime() {
+  return Boolean(process.env.VERCEL || (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "development"));
+}
+
+function readEvalArtifact(errors: string[]) {
   const file = path.join(process.cwd(), "artifacts", "persona-eval-latest.json");
   try {
+    if (isDeploymentRuntime() && process.env.TIMECITY_ALLOW_LOCAL_EVAL_ARTIFACT !== "1") {
+      if (fs.existsSync(file)) {
+        errors.push("Local persona eval artifact ignored in deployment; using Supabase eval summaries only.");
+      }
+      return null;
+    }
     if (!fs.existsSync(file)) return null;
     const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-    return isEvalSummary(parsed) ? parsed : null;
+    return isEvalSummary(parsed)
+      ? {
+          ...parsed,
+          availability: { kind: "local_artifact" as const, detail: file },
+        }
+      : null;
   } catch {
     return null;
   }
@@ -375,12 +394,24 @@ function readEvalSummaryFromClickstream(rows: ClickstreamRow[]) {
     .filter((row) => row.event_type === "persona_eval_summary" && isEvalSummary(row.metadata))
     .map((row) => row.metadata as TeamEvalSummary)
     .sort((a, b) => safeDate(b.generatedAt) - safeDate(a.generatedAt));
-  return summaries[0] ?? null;
+  const summary = summaries[0] ?? null;
+  return summary
+    ? {
+        ...summary,
+        availability: {
+          kind: "supabase_clickstream" as const,
+          detail: "Latest persona_eval_summary clickstream event",
+        },
+      }
+    : null;
 }
 
-function readLatestEvalSummary(rows: ClickstreamRow[]) {
-  const artifact = readEvalArtifact();
+function readLatestEvalSummary(rows: ClickstreamRow[], errors: string[]) {
+  const artifact = readEvalArtifact(errors);
   const clickstream = readEvalSummaryFromClickstream(rows);
+  if (!clickstream && isDeploymentRuntime()) {
+    errors.push("No Supabase persona eval summary is available for this deployment yet.");
+  }
   if (!artifact) return clickstream;
   if (!clickstream) return artifact;
   return safeDate(clickstream.generatedAt) > safeDate(artifact.generatedAt) ? clickstream : artifact;
@@ -441,7 +472,7 @@ export async function getTeamDashboardData(): Promise<TeamDashboardData> {
   const allStudents = snapshots.flatMap((row) => row.payload?.students ?? []);
   const sessions = summarizeSessions(snapshots);
   const models = summarizeModels(generationRows);
-  const evals = readLatestEvalSummary(clickRows);
+  const evals = readLatestEvalSummary(clickRows, errors);
   const eventCounts = Array.from(countBy(clickRows, (row) => row.event_type).entries())
     .map(([eventType, count]) => ({ eventType, count }))
     .sort((a, b) => b.count - a.count)

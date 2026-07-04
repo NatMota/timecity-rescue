@@ -32,6 +32,15 @@ const requiredAssets = [
   "public/assets/characters/cutouts/nix-1800-tempting.png",
 ];
 
+const requiredCompressedRuntimeAssets = [
+  "public/assets/characters/cutouts/ada-1800-neutral.webp",
+  "public/assets/characters/cutouts/ada-1800-thinking.webp",
+  "public/assets/characters/cutouts/cog9-1800-neutral.webp",
+  "public/assets/characters/cutouts/cog9-1800-worried.webp",
+  "public/assets/characters/cutouts/nix-1800-caught.webp",
+  "public/assets/characters/cutouts/nix-1800-tempting.webp",
+];
+
 const requiredSceneStageTokens = [
   "student-splash-art",
   "play-action",
@@ -95,6 +104,7 @@ const studentFiles = [
 const sceneStage = read("components/student/SceneStage.tsx");
 const gameDirector = read("components/student/useStudentGameDirector.ts");
 const css = read("app/globals.css");
+const characterAssets = read("components/shared/characterAssets.ts");
 const studentSource = studentFiles.map(read).join("\n");
 
 const assetReports = requiredAssets.map((asset) => {
@@ -116,6 +126,18 @@ const checks = [
     pass: assetReports.every((asset) => asset.pass),
     value: assetReports,
     expected: "all required splash, avatar, room, and character assets >= 96x96",
+  },
+  {
+    label: "1888 character runtime cutouts are compressed WebP assets",
+    pass:
+      characterAssets.includes('era === "1800" ? "webp"') &&
+      requiredCompressedRuntimeAssets.every((asset) => compressedRuntimeAssetOk(asset)),
+    value: requiredCompressedRuntimeAssets.map((asset) => ({
+      asset,
+      exists: fs.existsSync(asset),
+      sizeKb: fs.existsSync(asset) ? Math.round(fs.statSync(asset).size / 1024) : 0,
+    })),
+    expected: "1800 cutouts served as WebP files under 500 KB each",
   },
   {
     label: "Student stage renders required game surfaces",
@@ -219,4 +241,8 @@ function pngDimensions(file) {
     hasAlpha: [4, 6].includes(buffer.readUInt8(25)),
     name: path.basename(file),
   };
+}
+
+function compressedRuntimeAssetOk(file) {
+  return fs.existsSync(file) && fs.statSync(file).size > 1024 && fs.statSync(file).size < 500 * 1024;
 }

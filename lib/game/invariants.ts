@@ -43,6 +43,7 @@ export function validateInvariants(scene: ScenePayload) {
   }
   const textDriftProblems = fixedNode ? choiceTextDriftProblems(scene, fixedNode) : [];
   problems.push(...textDriftProblems);
+  for (const issue of dashboardLanguageProblems(scene)) problems.push(issue);
   for (const issue of readingLevelProblems(scene)) problems.push(issue);
   for (const item of scene.backpack_prompt?.allowed_item_slugs ?? []) {
     if (!BACKPACK_ITEMS.includes(item as (typeof BACKPACK_ITEMS)[number])) problems.push(`Unknown backpack item: ${item}`);
@@ -71,6 +72,38 @@ function choiceTextDriftProblems(scene: ScenePayload, fixedNode: StoryNode) {
     }
   }
   return problems;
+}
+
+function dashboardLanguageProblems(scene: ScenePayload) {
+  const checks = [
+    ["Dialogue", scene.dialogue.text],
+    ["Read-again text", scene.dialogue.read_again_text],
+    ["Clue text", scene.clue?.text],
+    ["Hint 1", scene.hint_ladder?.hints?.[0]],
+    ["Hint 2", scene.hint_ladder?.hints?.[1]],
+    ["Hint 3", scene.hint_ladder?.hints?.[2]],
+    ["Current hint", scene.hint_ladder?.current_hint],
+    ["Remediation scaffold", scene.remediation?.scaffold_text],
+    ["Remediation consequence", scene.remediation?.consequence_text],
+    ...scene.choices.map((choice) => [`Choice ${choice.id}`, choice.text] as const),
+  ] as const;
+  return checks
+    .filter(([, text]) => text && containsDashboardNotation(text))
+    .map(([label]) => `${label} uses abstract dashboard notation in child-facing text.`);
+}
+
+function containsDashboardNotation(text: string) {
+  return (
+    /\b(?:city stability|safe runs|safe_runs|dispatched unsafe|clock gap|battery|nix influence)\b[^.?!\n]{0,80}(?:->|→)/i.test(
+      text,
+    ) ||
+    /(?:->|→)[^.?!\n]{0,80}\b(?:city stability|safe runs|safe_runs|dispatched unsafe|clock gap|battery|nix influence)\b/i.test(
+      text,
+    ) ||
+    /\([^)]*\b(?:city stability|safe runs|safe_runs|clock gap|battery|nix)\b[^)]*\d+\s*(?:->|→)\s*\d+[^)]*\)/i.test(
+      text,
+    )
+  );
 }
 
 function readingLevelProblems(scene: ScenePayload) {

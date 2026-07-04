@@ -1,6 +1,7 @@
 import { generateScene } from "./generateScene";
 import { bestChoiceIdForNode, predictStudentAfterChoice } from "@/lib/game/predictChoice";
 import { NODE_BY_KEY } from "@/lib/game/fixedGraph";
+import { normalizeWorldState } from "@/lib/game/worldState";
 import type { Language, ScenePayload, StudentRecord } from "@/lib/game/types";
 
 type CacheEntry = {
@@ -36,18 +37,18 @@ export async function generateSceneCached(
 
 export function preGenerateLikelyNextScene(sessionCode: string, student: StudentRecord | null | undefined) {
   if (!student || student.memento) return;
-  const bestChoiceId = bestChoiceIdForNode(student.current_node_key);
-  if (!bestChoiceId) return;
-  const prediction = predictStudentAfterChoice(student, bestChoiceId, 2500);
-  if (prediction.completed || !NODE_BY_KEY[prediction.student.current_node_key]) return;
-  void generateSceneCached(
-    sessionCode,
-    prediction.student.current_node_key,
-    prediction.student.language,
-    prediction.student,
-  ).catch((error) => {
-    console.error("Failed to pre-generate TimeCity scene", error);
-  });
+  const predictions = likelyNextPredictions(student);
+  for (const prediction of uniquePredictions(predictions)) {
+    if (prediction.completed || !NODE_BY_KEY[prediction.student.current_node_key]) continue;
+    void generateSceneCached(
+      sessionCode,
+      prediction.student.current_node_key,
+      prediction.student.language,
+      prediction.student,
+    ).catch((error) => {
+      console.error("Failed to pre-generate TimeCity scene", error);
+    });
+  }
 }
 
 export function sceneCacheStats() {
@@ -93,6 +94,41 @@ function pruneCache() {
 
 function cloneScene(scene: ScenePayload): ScenePayload {
   return JSON.parse(JSON.stringify(scene)) as ScenePayload;
+}
+
+function likelyNextPredictions(student: StudentRecord) {
+  const node = NODE_BY_KEY[student.current_node_key];
+  const bestChoiceId = bestChoiceIdForNode(student.current_node_key);
+  if (!node || !bestChoiceId) return [];
+  const predictions = [predictStudentAfterChoice(student, bestChoiceId, 2500)];
+  const retryChoiceId = node.fallback.choices.find((choice) => choice.id !== bestChoiceId)?.id;
+  if (retryChoiceId) {
+    predictions.push(predictStudentAfterChoice(student, retryChoiceId, 2500));
+    predictions.push(predictStudentAfterChoice(student, retryChoiceId, 900));
+  }
+  return predictions;
+}
+
+function uniquePredictions(predictions: ReturnType<typeof predictStudentAfterChoice>[]) {
+  const seen = new Set<string>();
+  return predictions.filter((prediction) => {
+    const key = stableStringify({
+      completed: prediction.completed,
+      node: prediction.student.current_node_key,
+      language: prediction.student.language,
+      retry_count: prediction.student.retry_count,
+      difficulty_level: prediction.student.difficulty_level,
+      risk_flags: prediction.student.risk_flags,
+      last_choice: prediction.student.last_choice,
+      last_classification: prediction.student.last_classification,
+      last_response_ms: prediction.student.last_response_ms,
+      node_attempts: prediction.student.node_attempts,
+      world_state: normalizeWorldState(prediction.student.world_state),
+    });
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function stableStringify(value: unknown): string {
