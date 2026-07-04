@@ -103,7 +103,7 @@ const ROOM_EXPLORATION_BY_NODE: Record<string, RoomExploration> = {
   },
   H1_N09: {
     title: "1888 platform check",
-    starter: "The old station has no smart screens. Work out what the human worker can follow.",
+    starter: "The missing minute has pulled the team into 1888. The old station has no smart screens, so the worker needs steps that can be followed in order.",
     readyLabel: "Try the sequence challenge",
     minQuestionsBeforeChallenge: 1,
     questions: [
@@ -111,7 +111,7 @@ const ROOM_EXPLORATION_BY_NODE: Record<string, RoomExploration> = {
         id: "old-station",
         question: "Why are we in 1888?",
         answer:
-          "The missing minute has pulled an old station into the signal. Its workers need instructions they can follow in order.",
+          "The time signal folded through an old station record. If the 1888 route is fixed, the broken minute has a path back to the future.",
       },
       {
         id: "worker-tools",

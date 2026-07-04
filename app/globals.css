@@ -1158,6 +1158,85 @@ a {
   height: min(62vh, 540px);
 }
 
+.scene-character-era-1800 {
+  width: min(27vw, 340px);
+  height: min(72vh, 620px);
+}
+
+.scene-character-nix.scene-character-era-1800 {
+  width: min(28vw, 350px);
+  height: min(58vh, 500px);
+}
+
+.time-travel-transition {
+  position: absolute;
+  z-index: 3;
+  top: min(5vh, 46px);
+  left: 50%;
+  display: grid;
+  width: min(560px, calc(100% - 32px));
+  min-height: 116px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(243, 201, 94, 0.58);
+  border-radius: 8px;
+  background: rgba(6, 12, 27, 0.72);
+  box-shadow:
+    0 0 34px rgba(243, 201, 94, 0.3),
+    0 24px 80px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  padding: 16px 22px;
+  text-align: center;
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+  animation: time-jump-in 720ms ease both;
+}
+
+.time-travel-transition strong {
+  position: relative;
+  z-index: 1;
+  color: #f3c95e;
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 0.95;
+}
+
+.time-travel-transition p {
+  position: relative;
+  z-index: 1;
+  max-width: 44rem;
+  margin: 8px 0 0;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.time-ring {
+  position: absolute;
+  inset: -60%;
+  border: 18px solid rgba(146, 232, 255, 0.13);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 28px rgba(243, 201, 94, 0.22),
+    0 0 46px rgba(146, 232, 255, 0.16);
+  animation: time-ring-spin 2600ms linear infinite;
+}
+
+@keyframes time-jump-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-18px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes time-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .intro-scene-dialogue {
   position: absolute;
   right: min(4vw, 52px);

@@ -91,7 +91,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         {start.showIntro ? (
           <section className="intro-scene" aria-label={copy.introTitle}>
             {intro.showIncident ? <IntroIncident /> : null}
-            <SceneCharacterLayer character={intro.character} state={intro.characterState} phase={intro.characterPhase} />
+            <SceneCharacterLayer character={intro.character} state={intro.characterState} phase={intro.characterPhase} roomSlug="future_trainstation" />
             {intro.showDialogue ? (
               <div className="intro-scene-dialogue">
                 <p className="eyebrow">{intro.speaker}</p>
@@ -125,7 +125,9 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
       <div className="scene-scrim" />
       <WorldStateHud summary={scene.state_summary} />
 
-      <SceneCharacterLayer character={scene.character} state={scene.character_state} phase={mission.characterPhase} />
+      <SceneCharacterLayer character={scene.character} state={scene.character_state} phase={mission.characterPhase} roomSlug={scene.room_slug} />
+
+      {scene.transition && mission.showDialogue ? <TimeTravelTransition transition={scene.transition} /> : null}
 
       {mission.showDialogue ? (
         <section className="scene-dialogue-overlay" aria-live="polite">
@@ -229,6 +231,20 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         </div>
       </footer>
     </main>
+  );
+}
+
+function TimeTravelTransition({
+  transition,
+}: {
+  transition: NonNullable<import("@/lib/game/types").ScenePayload["transition"]>;
+}) {
+  return (
+    <aside className="time-travel-transition" aria-label={`Time jump to ${transition.target_year}`}>
+      <span className="time-ring" aria-hidden="true" />
+      <strong>{transition.title}</strong>
+      <p>{transition.text}</p>
+    </aside>
   );
 }
 

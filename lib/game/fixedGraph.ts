@@ -44,6 +44,19 @@ function choices(items: Array<[ScenePayload["choices"][number]["id"], string, Sc
   return items.map(([id, text, choice_type]) => ({ id, text, choice_type }));
 }
 
+function with1888Transition(payload: ScenePayload): ScenePayload {
+  return {
+    ...payload,
+    transition: {
+      kind: "time_jump",
+      title: "1888",
+      text:
+        "The cracked minute snaps backward. Glass platforms become iron rails, smart signs become gas lamps, and the signal pulls the team into the old station.",
+      target_year: "1888",
+    },
+  };
+}
+
 export const ROOM_SEQUENCE = [
   "future_trainstation",
   "future_market",
@@ -390,20 +403,22 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     allowed_choice_types: ["autocomplete_finish"],
     scripted: false,
     sort_order: 9,
-    fallback: scene(
-      "H1_N09",
-      "1800_trainstation",
-      "ada",
-      "encouraging",
-      "Professor Ada",
-      "A nervous 1888 worker is holding the route lever. The instruction starts: First check power, then...",
-      "A sequence puts steps in the order someone can follow.",
-      choices([
-        ["A", "check cargo type, then choose the safe track.", "autocomplete_finish"],
-        ["B", "choose the open track, then write down what cargo was on it.", "autocomplete_finish"],
-        ["C", "count the waiting passengers, then choose the shortest track.", "autocomplete_finish"],
-      ]),
-      "Good instructions put checks before action.",
+    fallback: with1888Transition(
+      scene(
+        "H1_N09",
+        "1800_trainstation",
+        "ada",
+        "encouraging",
+        "Professor Ada",
+        "We are in TimeCity Station, 1888. No smart boards, no live sensors, just a worker, a route lever, and seconds to choose. The instruction starts: First check power, then...",
+        "In 1888, a clear sequence matters because the worker must follow steps in order.",
+        choices([
+          ["A", "check cargo type, then choose the safe track.", "autocomplete_finish"],
+          ["B", "choose the open track, then write down what cargo was on it.", "autocomplete_finish"],
+          ["C", "count the waiting passengers, then choose the shortest track.", "autocomplete_finish"],
+        ]),
+        "Good instructions put checks before action.",
+      ),
     ),
     evaluation_key: {
       best_choice_ids: ["A"],

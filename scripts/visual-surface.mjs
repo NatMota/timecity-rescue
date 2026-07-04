@@ -24,6 +24,12 @@ const requiredAssets = [
   "public/assets/characters/cutouts/cog9-future-worried.png",
   "public/assets/characters/cutouts/nix-future-caught.png",
   "public/assets/characters/cutouts/nix-future-tempting.png",
+  "public/assets/characters/ada-1800-neutral.png",
+  "public/assets/characters/ada-1800-thinking.png",
+  "public/assets/characters/cog9-1800-neutral.png",
+  "public/assets/characters/cog9-1800-worried.png",
+  "public/assets/characters/nix-1800-caught.png",
+  "public/assets/characters/nix-1800-tempting.png",
 ];
 
 const requiredSceneStageTokens = [
@@ -36,6 +42,7 @@ const requiredSceneStageTokens = [
   "useStudentGameDirector",
   "SceneCharacterLayer",
   "RoomBackground",
+  "TimeTravelTransition",
   "ChoiceButtons",
   "ClueButton",
   "XCircle",
@@ -65,6 +72,8 @@ const requiredCssTokens = [
   ".student-splash-art",
   ".amethyst-action",
   ".scene-character",
+  ".scene-character-era-1800",
+  ".time-travel-transition",
   ".intro-scene-dialogue",
   ".intro-incident",
   ".intro-train-streak",

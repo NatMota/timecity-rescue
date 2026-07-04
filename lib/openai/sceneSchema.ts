@@ -88,6 +88,13 @@ const OpenAIChoiceSemanticMapSchema = z.object({
 
 const DifficultyLevelSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
 
+const TransitionSchema = z.object({
+  kind: z.literal("time_jump"),
+  title: z.string(),
+  text: z.string(),
+  target_year: z.literal("1888"),
+});
+
 export const ScenePayloadSchema = z.object({
   scene_id: z.string(),
   node_key: z.string(),
@@ -145,6 +152,7 @@ export const ScenePayloadSchema = z.object({
   difficulty_level: DifficultyLevelSchema.optional(),
   world_state: WorldStateSchema.optional(),
   state_summary: StateSummarySchema.optional(),
+  transition: TransitionSchema.optional(),
   consequence_preview: z
     .object({
       show_after_choice: z.boolean(),

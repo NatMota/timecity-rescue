@@ -114,6 +114,12 @@ export type ScenePayload = {
   difficulty_level?: 1 | 2 | 3;
   world_state?: WorldState;
   state_summary?: StateSummary;
+  transition?: {
+    kind: "time_jump";
+    title: string;
+    text: string;
+    target_year: "1888";
+  };
   consequence_preview?: {
     show_after_choice: boolean;
     tone: "positive" | "debug" | "warning";

@@ -13,7 +13,7 @@ const config = {
 export function CharacterSprite({ character, state }: { character: CharacterSlug; state: CharacterState }) {
   const item = config[character];
   const Icon = item.icon;
-  const image = getCharacterImage(character, state);
+  const image = getCharacterImage(character, state, { era: "future" });
 
   return (
     <div className={clsx("character-card", `character-${item.tone}`)} aria-label={`${item.label}, ${state}`}>

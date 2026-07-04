@@ -251,8 +251,9 @@ function withServerSceneFields(scene: ScenePayload, student: StudentRecord | nul
                 ? "Slow down and compare the evidence before choosing."
                 : "Use the clue to compare the two strongest pieces of evidence."),
             consequence_text: scene.remediation?.consequence_text || student?.last_world_event,
-          }
+        }
         : scene.remediation,
+    transition: scene.transition ?? NODE_BY_KEY[scene.node_key]?.fallback.transition,
     world_state: student?.world_state,
     state_summary: student?.world_state ? worldStateSummary(student.world_state, student.last_world_event) : undefined,
   };
