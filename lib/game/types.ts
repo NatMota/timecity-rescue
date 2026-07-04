@@ -118,7 +118,7 @@ export type ScenePayload = {
     kind: "time_jump";
     title: string;
     text: string;
-    target_year: "1888";
+    target_year: "1888" | "future";
   };
   consequence_preview?: {
     show_after_choice: boolean;

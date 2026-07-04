@@ -57,6 +57,19 @@ function with1888Transition(payload: ScenePayload): ScenePayload {
   };
 }
 
+function withFutureTransition(payload: ScenePayload): ScenePayload {
+  return {
+    ...payload,
+    transition: {
+      kind: "time_jump",
+      title: "Future City",
+      text:
+        "The telegraph click becomes a clean digital pulse. Gas lamps fold into signal lights, iron switches become smart controls, and the team lands outside future Town Hall.",
+      target_year: "future",
+    },
+  };
+}
+
 export const ROOM_SEQUENCE = [
   "future_trainstation",
   "future_market",
@@ -481,20 +494,22 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     allowed_choice_types: ["why"],
     scripted: false,
     sort_order: 11,
-    fallback: scene(
-      "H1_N11",
-      "future_mayorhall",
-      "nix",
-      "mischievous",
-      "Nix",
-      "The mayor is pacing outside Town Hall. Ada's Station Helper Agent plan would read station evidence and recommend routes for a human to approve. I say make it pick the fastest route every time. Dramatic. Simple. Why should Ada push back?",
-      "Optimising one thing can create problems if constraints are ignored.",
-      choices([
-        ["A", "Because cargo safety, power, and passengers still matter.", "why"],
-        ["B", "Because the fastest route should be used only at night.", "why"],
-        ["C", "Because one speed goal can replace every safety rule.", "why"],
-      ]),
-      "Good agents need goals and constraints.",
+    fallback: withFutureTransition(
+      scene(
+        "H1_N11",
+        "future_mayorhall",
+        "nix",
+        "mischievous",
+        "Nix",
+        "Back in future TimeCity, the mayor is pacing outside Town Hall. Ada's Station Helper Agent plan would read station evidence and recommend routes for a human to approve. I say make it pick the fastest route every time. Dramatic. Simple. Why should Ada push back?",
+        "Optimising one thing can create problems if constraints are ignored.",
+        choices([
+          ["A", "Because cargo safety, power, and passengers still matter.", "why"],
+          ["B", "Because the fastest route should be used only at night.", "why"],
+          ["C", "Because one speed goal can replace every safety rule.", "why"],
+        ]),
+        "Good agents need goals and constraints.",
+      ),
     ),
     evaluation_key: {
       best_choice_ids: ["A"],

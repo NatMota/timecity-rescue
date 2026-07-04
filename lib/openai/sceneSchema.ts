@@ -92,7 +92,7 @@ const TransitionSchema = z.object({
   kind: z.literal("time_jump"),
   title: z.string(),
   text: z.string(),
-  target_year: z.literal("1888"),
+  target_year: z.enum(["1888", "future"]),
 });
 
 export const ScenePayloadSchema = z.object({

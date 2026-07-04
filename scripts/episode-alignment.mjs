@@ -111,6 +111,16 @@ const checks = [
     expected: requiredBackpack,
   },
   {
+    label: "Time travel transitions are explicit both ways",
+    pass:
+      /function with1888Transition/.test(graphText) &&
+      /function withFutureTransition/.test(graphText) &&
+      /node_key: "H1_N09"[\s\S]{0,900}with1888Transition/.test(graphText) &&
+      /node_key: "H1_N11"[\s\S]{0,900}withFutureTransition/.test(graphText),
+    value: ["H1_N09 -> 1888", "H1_N11 -> future"],
+    expected: "authored transition into 1888 and authored transition back to future TimeCity",
+  },
+  {
     label: "Side quests are disabled for the current prototype scope",
     pass: new Set(sideQuestNodes).size === 0 && new Set(sideQuestIds).size === 0,
     value: { nodes: Array.from(new Set(sideQuestNodes)), ids: Array.from(new Set(sideQuestIds)) },
