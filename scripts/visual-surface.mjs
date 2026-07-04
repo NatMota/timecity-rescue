@@ -24,12 +24,12 @@ const requiredAssets = [
   "public/assets/characters/cutouts/cog9-future-worried.png",
   "public/assets/characters/cutouts/nix-future-caught.png",
   "public/assets/characters/cutouts/nix-future-tempting.png",
-  "public/assets/characters/ada-1800-neutral.png",
-  "public/assets/characters/ada-1800-thinking.png",
-  "public/assets/characters/cog9-1800-neutral.png",
-  "public/assets/characters/cog9-1800-worried.png",
-  "public/assets/characters/nix-1800-caught.png",
-  "public/assets/characters/nix-1800-tempting.png",
+  "public/assets/characters/cutouts/ada-1800-neutral.png",
+  "public/assets/characters/cutouts/ada-1800-thinking.png",
+  "public/assets/characters/cutouts/cog9-1800-neutral.png",
+  "public/assets/characters/cutouts/cog9-1800-worried.png",
+  "public/assets/characters/cutouts/nix-1800-caught.png",
+  "public/assets/characters/cutouts/nix-1800-tempting.png",
 ];
 
 const requiredSceneStageTokens = [
@@ -99,12 +99,14 @@ const studentSource = studentFiles.map(read).join("\n");
 
 const assetReports = requiredAssets.map((asset) => {
   const dimensions = pngDimensions(asset);
+  const alphaRequired = asset.includes("/cutouts/");
   return {
     asset,
     exists: fs.existsSync(asset),
     width: dimensions?.width ?? 0,
     height: dimensions?.height ?? 0,
-    pass: Boolean(dimensions && dimensions.width >= 96 && dimensions.height >= 96),
+    hasAlpha: Boolean(dimensions?.hasAlpha),
+    pass: Boolean(dimensions && dimensions.width >= 96 && dimensions.height >= 96 && (!alphaRequired || dimensions.hasAlpha)),
   };
 });
 
@@ -214,6 +216,7 @@ function pngDimensions(file) {
   return {
     width: buffer.readUInt32BE(16),
     height: buffer.readUInt32BE(20),
+    hasAlpha: [4, 6].includes(buffer.readUInt8(25)),
     name: path.basename(file),
   };
 }

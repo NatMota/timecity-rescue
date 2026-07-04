@@ -14,7 +14,7 @@ export function getCharacterImage(
   options: { cutout?: boolean; era?: CharacterEra } = {},
 ) {
   const era = options.era ?? "future";
-  const cutout = Boolean(options.cutout && era === "future");
+  const cutout = Boolean(options.cutout);
   const prefix = cutout ? "/assets/characters/cutouts" : "/assets/characters";
   if (character === "ada") {
     return state === "thinking" || state === "uncertain"
