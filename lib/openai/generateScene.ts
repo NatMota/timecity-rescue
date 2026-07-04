@@ -3,7 +3,7 @@ import { getOpenAIClient, getOpenAIModel } from "./client";
 import { buildScenePrompt } from "./scenePrompt";
 import { OpenAIScenePayloadSchema } from "./sceneSchema";
 import { validateScenePayload } from "./validateScene";
-import { getFallbackScene } from "@/lib/game/fallbackScenes";
+import { advancedDistractor, getFallbackScene } from "@/lib/game/fallbackScenes";
 import { choiceSemanticForNode, choiceSemanticMapForNode, NODE_BY_KEY } from "@/lib/game/fixedGraph";
 import { difficultyForStudent } from "@/lib/game/adaptDifficulty";
 import { worldStateSummary } from "@/lib/game/worldState";
@@ -219,13 +219,21 @@ function withServerSceneFields(scene: ScenePayload, student: StudentRecord | nul
   const fastGuessRetry = Boolean(
     retryAttempt > 0 && (student?.risk_flags?.fast_clicking || student?.risk_flags?.possible_guessing),
   );
+  const baseChoices =
+    difficulty === 3 && scene.choices.length < 4 && !scene.choices.some((choice) => choice.id === "D")
+      ? [...scene.choices, advancedDistractor(scene)]
+      : scene.choices;
   const choices =
     retryAttempt > 0
-      ? scene.choices.map((choice) => ({
+      ? baseChoices.map((choice) => ({
           ...choice,
           text: retryChoiceText(choice.text, retryAttempt, fastGuessRetry),
         }))
-      : scene.choices;
+      : baseChoices;
+  const choiceSemanticMap = choiceSemanticMapForNode(
+    scene.node_key,
+    choices.map((choice) => choice.id),
+  );
   const safeSceneId = scene.scene_id.startsWith("fallback-")
     ? `generated-${scene.node_key}-${Date.now()}`
     : scene.scene_id;
@@ -234,12 +242,7 @@ function withServerSceneFields(scene: ScenePayload, student: StudentRecord | nul
     scene_id: safeSceneId,
     choices,
     difficulty_level: difficulty,
-    choice_semantic_map:
-      scene.choice_semantic_map ??
-      choiceSemanticMapForNode(
-        scene.node_key,
-        choices.map((choice) => choice.id),
-      ),
+    choice_semantic_map: choiceSemanticMap,
     remediation:
       retryAttempt > 0
         ? {

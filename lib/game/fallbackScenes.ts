@@ -216,7 +216,7 @@ function focusRetryChoice(choice: Choice, retryAttempt: number): Choice {
   };
 }
 
-function advancedDistractor(scene: ScenePayload): Choice {
+export function advancedDistractor(scene: ScenePayload): Choice {
   const choiceType = scene.choices[0]?.choice_type ?? "action";
   const nodeSpecific = ADVANCED_DISTRACTORS_BY_NODE[scene.node_key];
   if (nodeSpecific) return { id: "D", text: nodeSpecific, choice_type: choiceType };

@@ -13,6 +13,9 @@ export function validateInvariants(scene: ScenePayload) {
   if (scene.choices.length < 3 && scene.difficulty_level !== 1 && !scene.remediation?.active) {
     problems.push("Only difficulty-1 or remediation scenes may have 2 choices.");
   }
+  if (scene.difficulty_level === 3 && !scene.remediation?.active && scene.choices.length < 4) {
+    problems.push("Difficulty-3 scenes must include the advanced fourth choice.");
+  }
   if (new Set(scene.choices.map((choice) => choice.id)).size !== scene.choices.length) {
     problems.push("Scene choices must not repeat IDs.");
   }
@@ -50,6 +53,7 @@ export function validateInvariants(scene: ScenePayload) {
 function choiceTextDriftProblems(scene: ScenePayload, fixedNode: StoryNode) {
   const problems: string[] = [];
   const canonical = new Map(fixedNode.fallback.choices.map((choice) => [choice.id, choice.text]));
+  const canonicalChoices = fixedNode.fallback.choices.filter((choice) => choice.id !== "D");
   for (const choice of scene.choices) {
     if (choice.id === "D") continue;
     const canonicalText = canonical.get(choice.id);
@@ -57,6 +61,13 @@ function choiceTextDriftProblems(scene: ScenePayload, fixedNode: StoryNode) {
     const overlap = tokenOverlap(choice.text, canonicalText);
     if (overlap.shared < 2 && overlap.ratio < 0.28) {
       problems.push(`Choice ${choice.id} wording drifts from its fixed semantic meaning.`);
+    }
+    const nearestOther = canonicalChoices
+      .filter((candidate) => candidate.id !== choice.id)
+      .map((candidate) => ({ id: candidate.id, ...tokenOverlap(choice.text, candidate.text) }))
+      .sort((left, right) => right.score - left.score)[0];
+    if (nearestOther && nearestOther.score > overlap.score && nearestOther.shared >= overlap.shared) {
+      problems.push(`Choice ${choice.id} wording is closer to canonical choice ${nearestOther.id} than its own meaning.`);
     }
   }
   return problems;
@@ -80,7 +91,8 @@ function tokenOverlap(left: string, right: string) {
   const leftTokens = contentTokens(left);
   const rightTokens = contentTokens(right);
   const shared = leftTokens.filter((token) => rightTokens.includes(token)).length;
-  return { shared, ratio: shared / Math.max(1, Math.min(leftTokens.length, rightTokens.length)) };
+  const ratio = shared / Math.max(1, Math.min(leftTokens.length, rightTokens.length));
+  return { shared, ratio, score: shared + ratio };
 }
 
 function contentTokens(text: string) {

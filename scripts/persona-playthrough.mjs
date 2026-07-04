@@ -25,7 +25,9 @@ const maxSteps = Number(argValue("--max-steps", "50"));
 const seedCount = Number(argValue("--seeds", process.env.TIMECITY_PERSONA_SEEDS || "1"));
 const useJudge = args.has("--judge");
 const requireJudge = args.has("--require-judge");
-const requireGenerated = args.has("--require-generated") || truthy(process.env.TIMECITY_REQUIRE_GENERATED_EVAL);
+const allowFallbackJudging = args.has("--allow-fallback-judging") || truthy(process.env.TIMECITY_ALLOW_FALLBACK_JUDGING);
+const requireGenerated =
+  args.has("--require-generated") || truthy(process.env.TIMECITY_REQUIRE_GENERATED_EVAL) || (useJudge && !allowFallbackJudging);
 const minGeneratedScenes = Number(
   argValue("--min-generated-scenes", process.env.TIMECITY_MIN_GENERATED_SCENES || (requireGenerated ? "9" : "0")),
 );
@@ -167,6 +169,14 @@ async function main() {
     if (useJudge) {
       for (const result of results) {
         console.error(`[eval] judging ${result.persona} seed ${result.seed}`);
+        if (requireGenerated && !result.deterministicGates?.checks?.generatedScenesObserved) {
+          result.llmJudge = {
+            pass: false,
+            coverageGateFailed: true,
+            reason: "Generated-scene coverage gate failed; judges were not run against fallback-heavy content.",
+          };
+          continue;
+        }
         result.llmJudge = await judgePlaythrough(result);
       }
     }
@@ -179,7 +189,15 @@ async function main() {
       seedCount,
       generation: { requireGenerated, minGeneratedScenes, minGeneratedRatio, minGeneratedEligibleRatio },
       judge: useJudge
-        ? { model, required: requireJudge, requireGenerated, minGeneratedScenes, minGeneratedRatio, minGeneratedEligibleRatio }
+        ? {
+            model,
+            required: requireJudge,
+            requireGenerated,
+            allowFallbackJudging,
+            minGeneratedScenes,
+            minGeneratedRatio,
+            minGeneratedEligibleRatio,
+          }
         : null,
       langfuse: {
         traced: Boolean(sdk),
@@ -677,10 +695,18 @@ function getObservedJudgeClient(result) {
 }
 
 async function parseJudgeWithRetry(client, judge, result, compactTranscript) {
+  const generationGateInstruction = requireGenerated
+    ? `This judged run requires generated-scene coverage: at least ${minGeneratedScenes} generated scenes, ${round1(
+        minGeneratedRatio * 100,
+      )}% generated overall, and ${round1(
+        minGeneratedEligibleRatio * 100,
+      )}% generated among eligible nodes. If deterministicGates.checks.generatedScenesObserved is false, fail even if the fallback story is coherent.`
+    : "Fallback-only judging is explicitly allowed for this run; still note if generated coverage is low.";
   const input = [
     judge.prompt,
     "Evaluate a classroom-safe button-only AI/coding adventure for 9-10-year-olds.",
     "The UI has full-screen illustrated rooms, character cutouts, room-specific exploration panels that require at least one clue tap before room challenges, dialogue overlays, fixed nav buttons, and no open text input. Judge the main adventure path from the transcript, room exploration data, and stated UI, not a screenshot.",
+    generationGateInstruction,
     "Fail if the route completes but feels dry, leaks answers before the challenge, repeats generic labels, lacks story tension, reuses fallback-style quiz prose without reactive generated scenes, or does not teach the promised concepts for your perspective.",
     JSON.stringify({
       judge: judge.id,
@@ -708,7 +734,7 @@ async function parseJudgeWithRetry(client, judge, result, compactTranscript) {
         },
         input,
       }, {
-        timeout: 60000,
+        timeout: 90000,
       });
     } catch (error) {
       if (!isRetriableOpenAIError(error) || attempt === 2) throw error;
@@ -718,7 +744,12 @@ async function parseJudgeWithRetry(client, judge, result, compactTranscript) {
 }
 
 function isRetriableOpenAIError(error) {
-  return isRateLimit(error) || error?.name === "APIConnectionError" || /Connection error|fetch failed/i.test(error?.message || "");
+  return (
+    isRateLimit(error) ||
+    error?.name === "APIConnectionError" ||
+    error?.name === "APIConnectionTimeoutError" ||
+    /Connection error|fetch failed|timed out/i.test(error?.message || "")
+  );
 }
 
 function isRateLimit(error) {
@@ -825,6 +856,8 @@ function summarizeReport(report, file) {
               reason: result.llmJudge.reason,
             }
           : {
+              coverageGateFailed: Boolean(result.llmJudge.coverageGateFailed),
+              reason: result.llmJudge.reason,
               judges: result.llmJudge.judges?.map((item) => ({
                 judge: item.judge,
                 score: item.result.score_1_to_5,
