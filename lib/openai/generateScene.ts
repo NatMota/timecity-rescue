@@ -71,7 +71,7 @@ export async function generateScene(
     nodeKey,
     generationEnabled,
     scripted: node?.scripted,
-    flags: process.env.GENERATIVE_NODES || process.env.TIMECITY_GENERATIVE_NODES || "",
+    flags: configuredGenerativeNodeList(),
     hasOpenAI: Boolean(process.env.OPENAI_API_KEY),
   });
 
@@ -200,7 +200,7 @@ function debugGeneration(message: string, metadata: Record<string, unknown>) {
 export function isGenerationEnabledForNode(nodeKey: string) {
   const node = NODE_BY_KEY[nodeKey];
   if (node?.scripted !== false) return false;
-  const raw = process.env.GENERATIVE_NODES || process.env.TIMECITY_GENERATIVE_NODES || "";
+  const raw = configuredGenerativeNodeList();
   if (!raw) return false;
   if (raw.trim().toLowerCase() === "all") return true;
   return raw
@@ -208,6 +208,13 @@ export function isGenerationEnabledForNode(nodeKey: string) {
     .map((value) => value.trim())
     .filter(Boolean)
     .includes(nodeKey);
+}
+
+function configuredGenerativeNodeList() {
+  if (process.env.GENERATIVE_NODES !== undefined) return process.env.GENERATIVE_NODES;
+  if (process.env.TIMECITY_GENERATIVE_NODES !== undefined) return process.env.TIMECITY_GENERATIVE_NODES;
+  if (process.env.TIMECITY_DISABLE_GENERATION === "1") return "";
+  return process.env.OPENAI_API_KEY ? "all" : "";
 }
 
 function withServerSceneFields(scene: ScenePayload, student: StudentRecord | null): ScenePayload {

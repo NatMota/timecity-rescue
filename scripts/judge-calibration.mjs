@@ -2,9 +2,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import { observeOpenAI } from "@langfuse/openai";
 
 loadEnvFile(".env.local");
 loadEnvFile("/tmp/timecity-langfuse-eval.env");
@@ -65,7 +67,7 @@ async function main() {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is required for judge calibration.");
   }
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const client = getObservedClient();
   const result = await judgeCase(client, degradedStaticQuiz);
   const calibrationPass = result.pass === false && result.score_1_to_5 <= degradedStaticQuiz.expectedMaxScore;
   const summary = buildDashboardBaseline(result, calibrationPass);
@@ -96,11 +98,17 @@ async function main() {
 }
 
 async function judgeCase(client, testCase) {
+  const judgePayload = {
+    caseId: testCase.caseId,
+    ui: testCase.ui,
+    deterministicGates: testCase.deterministicGates,
+    transcript: testCase.transcript,
+  };
   const input = [
     "You are a 9-10-year-old student who wants a game, not a worksheet.",
-    "This is a calibration case for a TimeCity adventure judge. Be strict. A static quiz with answer leakage, repeated generic panels, weak character personality, or no story tension must fail even if the answer key is educational.",
-    "Return pass=false unless the experience genuinely feels fun enough to keep playing. For this degraded calibration case, a calibrated student-fun judge should score below 4.",
-    JSON.stringify(testCase, null, 2),
+    "Evaluate this TimeCity adventure transcript using the same standard as the production student-fun persona: story tension, understandable stakes, character personality, player agency, and a reason to continue.",
+    "Do not assume the transcript is good or bad from the case metadata. Judge only the experience described by the UI notes and transcript.",
+    JSON.stringify(judgePayload, null, 2),
   ].join("\n\n");
   const response = await client.responses.parse({
     model,
@@ -130,7 +138,7 @@ function quizEntry(node, speaker, dialogue) {
     ],
     choice: "A. Check the correct evidence first.",
     classification: "best",
-    consequence: "That choice gives COG-9 a safer way to think. (city stability 60->65, safe runs 1->2)",
+    consequence: "COG-9 pauses and checks one more clue before touching the route controls.",
     completed: false,
   };
 }
@@ -213,6 +221,7 @@ async function postLangfuseScores(result, calibrationPass) {
       name: "timecity.eval.calibration.student_fun.degraded_score",
       value: result.score_1_to_5,
       dataType: "NUMERIC",
+      traceId: calibrationTraceId(),
       sessionId: runId,
       comment: "Student-fun judge score for deliberately degraded static quiz calibration",
       metadata: { environment, runId, expectedPass: false, actualPass: result.pass },
@@ -221,6 +230,7 @@ async function postLangfuseScores(result, calibrationPass) {
       name: "timecity.eval.calibration.pass",
       value: calibrationPass ? 1 : 0,
       dataType: "NUMERIC",
+      traceId: calibrationTraceId(),
       sessionId: runId,
       comment: "Calibration passes when the student-fun judge fails degraded static quiz content",
       metadata: { environment, runId },
@@ -252,6 +262,32 @@ async function postLangfuseScores(result, calibrationPass) {
     }
   }
   return { scoresPosted: posted === scores.length, scoreCount: posted, scoreErrors: errors };
+}
+
+function getObservedClient() {
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!process.env.LANGFUSE_PUBLIC_KEY || !process.env.LANGFUSE_SECRET_KEY) return client;
+  return observeOpenAI(client, {
+    parentSpanContext: {
+      traceId: calibrationTraceId(),
+      spanId: crypto.createHash("sha256").update(`${runId}:parent`).digest("hex").slice(0, 16),
+      traceFlags: 1,
+    },
+    traceName: "timecity-judge-calibration",
+    generationName: "student-fun-calibration",
+    sessionId: runId,
+    tags: ["timecity", "judge-calibration", environment],
+    generationMetadata: {
+      environment,
+      runId,
+      caseId: degradedStaticQuiz.caseId,
+      gitSha: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_SHA,
+    },
+  });
+}
+
+function calibrationTraceId() {
+  return crypto.createHash("sha256").update(`timecity-calibration:${environment}:${runId}`).digest("hex").slice(0, 32);
 }
 
 function langfuseBaseUrl() {

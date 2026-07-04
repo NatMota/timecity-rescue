@@ -43,12 +43,104 @@ export function validateInvariants(scene: ScenePayload) {
   }
   const textDriftProblems = fixedNode ? choiceTextDriftProblems(scene, fixedNode) : [];
   problems.push(...textDriftProblems);
+  if (fixedNode) problems.push(...answerLeakageProblems(scene, fixedNode));
   for (const issue of dashboardLanguageProblems(scene)) problems.push(issue);
   for (const issue of readingLevelProblems(scene)) problems.push(issue);
   for (const item of scene.backpack_prompt?.allowed_item_slugs ?? []) {
     if (!BACKPACK_ITEMS.includes(item as (typeof BACKPACK_ITEMS)[number])) problems.push(`Unknown backpack item: ${item}`);
   }
   return { valid: problems.length === 0, problems };
+}
+
+function answerLeakageProblems(scene: ScenePayload, fixedNode: StoryNode) {
+  const problems: string[] = [];
+  const bestChoices = scene.choices.filter((choice) => fixedNode.evaluation_key.best_choice_ids.includes(choice.id));
+  if (!bestChoices.length) return problems;
+  const leadTexts = [
+    ["Dialogue", scene.dialogue.text],
+    ["Read-again text", scene.dialogue.read_again_text],
+    ["Clue text", scene.clue?.text],
+    ["Hint 1", scene.hint_ladder?.hints?.[0]],
+    ["Hint 2", scene.hint_ladder?.hints?.[1]],
+    ["Hint 3", scene.hint_ladder?.hints?.[2]],
+    ["Current hint", scene.hint_ladder?.current_hint],
+    ["Remediation scaffold", scene.remediation?.scaffold_text],
+  ] as const;
+  for (const [label, text] of leadTexts) {
+    if (!text) continue;
+    for (const choice of bestChoices) {
+      if (leaksBestChoice(text, choice.text)) {
+        problems.push(`${label} leaks the best choice before the challenge.`);
+      }
+    }
+  }
+  return problems;
+}
+
+function leaksBestChoice(text: string, bestChoiceText: string) {
+  const textNorm = normalizeLeakText(text);
+  const bestNorm = normalizeLeakText(bestChoiceText);
+  if (bestNorm.length >= 24 && textNorm.includes(bestNorm)) return true;
+
+  const bestTokens = leakageTokens(bestChoiceText);
+  if (bestTokens.length < 3) return false;
+  const textTokens = leakageTokens(text);
+  const shared = bestTokens.filter((token) => textTokens.includes(token));
+  if (shared.length < 3) return false;
+
+  const hasDirective = /\b(pick|choose|select|use|check|compare|ask|inspect|read|run|balance|revise|explain|recommend|send|stop)\b/i.test(
+    text,
+  );
+  const distinctiveRatio = shared.length / Math.max(1, Math.min(bestTokens.length, 7));
+  return hasDirective && distinctiveRatio >= 0.5;
+}
+
+function normalizeLeakText(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function leakageTokens(text: string) {
+  const stop = new Set([
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "because",
+    "before",
+    "by",
+    "for",
+    "from",
+    "if",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "then",
+    "this",
+    "to",
+    "what",
+    "when",
+    "which",
+    "with",
+  ]);
+  return Array.from(
+    new Set(
+      normalizeLeakText(text)
+        .split(/\s+/)
+        .filter((token) => token.length > 2 && !stop.has(token)),
+    ),
+  );
 }
 
 function choiceTextDriftProblems(scene: ScenePayload, fixedNode: StoryNode) {

@@ -571,7 +571,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     canonical_prompt_intent: "Student picks the correct blueprint parts.",
     allowed_choice_types: ["backpack"],
     required_backpack_item: "agent_blueprint",
-    scripted: true,
+    scripted: false,
     sort_order: 13,
     fallback: scene(
       "H1_N13",
@@ -609,7 +609,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Ada asks the student to write the core if/then route rule.",
     canonical_prompt_intent: "Student completes a condition-action rule.",
     allowed_choice_types: ["autocomplete_finish"],
-    scripted: true,
+    scripted: false,
     sort_order: 14,
     fallback: scene(
       "H1_N14",
@@ -646,7 +646,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "COG-9 asks how the agent should learn whether the route worked.",
     canonical_prompt_intent: "Student identifies feedback as evidence after action.",
     allowed_choice_types: ["why"],
-    scripted: true,
+    scripted: false,
     sort_order: 15,
     fallback: scene(
       "H1_N15",
@@ -683,7 +683,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Ada checks whether the first blueprint draft includes a safety rule.",
     canonical_prompt_intent: "Student identifies the part of the blueprint that proves the agent has a guardrail.",
     allowed_choice_types: ["why"],
-    scripted: true,
+    scripted: false,
     sort_order: 16,
     fallback: scene(
       "H1_N16",
@@ -720,7 +720,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "COG-9 asks which tools the Station Helper Agent is allowed to use by itself.",
     canonical_prompt_intent: "Student limits tools to safe reading and recommendation actions.",
     allowed_choice_types: ["backpack"],
-    scripted: true,
+    scripted: false,
     sort_order: 17,
     fallback: scene(
       "H1_N17",
@@ -758,7 +758,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Ada asks what the agent should remember after each route choice.",
     canonical_prompt_intent: "Student chooses memory that supports later route improvement.",
     allowed_choice_types: ["evidence"],
-    scripted: true,
+    scripted: false,
     sort_order: 18,
     fallback: scene(
       "H1_N18",
@@ -795,7 +795,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Nix tries to make the agent favour only the loudest passengers.",
     canonical_prompt_intent: "Student balances passenger need, cargo safety, and power constraints.",
     allowed_choice_types: ["why"],
-    scripted: true,
+    scripted: false,
     sort_order: 19,
     fallback: scene(
       "H1_N19",
@@ -832,7 +832,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Nix pressures the student to launch the Station Helper Agent everywhere, forcing a limited-test decision.",
     canonical_prompt_intent: "Student chooses a limited test instead of a full-city deployment.",
     allowed_choice_types: ["action"],
-    scripted: true,
+    scripted: false,
     sort_order: 20,
     fallback: scene(
       "H1_N20",
@@ -869,7 +869,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "The test route nearly works, but one fragile cargo train is sent too fast.",
     canonical_prompt_intent: "Student compares expected and actual output to debug a rule.",
     allowed_choice_types: ["evidence"],
-    scripted: true,
+    scripted: false,
     sort_order: 21,
     fallback: scene(
       "H1_N21",
@@ -906,7 +906,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Ada asks the student to revise the route rule using the failed test.",
     canonical_prompt_intent: "Student updates the rule to include fragile cargo and power level.",
     allowed_choice_types: ["autocomplete_finish"],
-    scripted: true,
+    scripted: false,
     sort_order: 22,
     fallback: scene(
       "H1_N22",
@@ -943,7 +943,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "COG-9 asks the student to explain why the final rule is safer.",
     canonical_prompt_intent: "Student explains that constraints are checked before speed.",
     allowed_choice_types: ["why"],
-    scripted: true,
+    scripted: false,
     sort_order: 23,
     fallback: scene(
       "H1_N23",
@@ -980,7 +980,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Ada confirms the Station Helper Agent and prepares the Agent Builder Passport.",
     canonical_prompt_intent: "Student identifies what they built and learned.",
     allowed_choice_types: ["why"],
-    scripted: true,
+    scripted: false,
     sort_order: 24,
     fallback: scene(
       "H1_N24",

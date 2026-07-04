@@ -1,6 +1,5 @@
 import { difficultyForStudent, teacherRecommendedPrompt } from "@/lib/game/adaptDifficulty";
 import {
-  choiceSemanticMapForNode,
   NODE_BY_KEY,
   BACKPACK_ITEMS,
   CHARACTERS,
@@ -36,7 +35,7 @@ Rigid invariants:
 - Keep the current character's voice consistent with the character profile below.
 - Use the allowed choice IDs below. Do not invent other IDs.
 - scene_id must start with "generated-${node.node_key}-".
-- Return choice_semantic_map where each visible choice ID maps exactly to its canonical semantic slot.
+- Return choice_semantic_map with every visible choice ID set to "fixed_slot" and every hidden choice ID set to null. The server attaches answer semantics after generation.
 - You may reword choice text for the student's difficulty, but the semantic slot must not change.
 - Use the canonical speaker name below exactly.
 - Difficulty 1: use 2 choices only for a slow/stuck learner, with short sentences, best choice plus one plausible misconception, and an Ada scaffold in remediation if active.
@@ -46,6 +45,8 @@ Rigid invariants:
 - Every user-visible string must be in English.
 - Generate a hint_ladder with three hints. Hint 1 orients, hint 2 narrows, hint 3 scaffolds. Never reveal the answer directly.
 - Reference the current world_state in dialogue or hint text using concrete world facts, not abstract dashboard language.
+- Do not copy the best choice text, answer-key wording, or canonical_prompt_intent wording into dialogue, read-again text, clue text, hints, or remediation.
+- The scene question may name the problem and evidence, but must not tell the student which option to pick.
 
 Current fixed node:
 ${JSON.stringify(
@@ -121,11 +122,15 @@ ${JSON.stringify(node.allowed_choice_types)}
 Canonical choices:
 ${JSON.stringify(node.fallback.choices, null, 2)}
 
-Canonical semantic map:
+Choice semantic map output contract:
 ${JSON.stringify(
-  choiceSemanticMapForNode(
-    node.node_key,
-    difficulty === 3 ? [...node.fallback.choices.map((choice) => choice.id), "D"] : node.fallback.choices.map((choice) => choice.id),
+  Object.fromEntries(
+    ["A", "B", "C", "D"].map((choiceId) => [
+      choiceId,
+      (difficulty === 3 ? [...node.fallback.choices.map((choice) => choice.id), "D"] : node.fallback.choices.map((choice) => choice.id)).includes(choiceId)
+        ? "fixed_slot"
+        : null,
+    ]),
   ),
   null,
   2,

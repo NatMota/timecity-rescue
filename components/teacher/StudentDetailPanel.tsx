@@ -4,9 +4,11 @@ import type { StudentRecord } from "@/lib/game/types";
 
 export function StudentDetailPanel({
   student,
+  busyAction,
   onOverride,
 }: {
   student: StudentRecord | null;
+  busyAction?: string | null;
   onOverride: (action: "skip" | "reset" | "assist") => void;
 }) {
   if (!student) {
@@ -41,15 +43,15 @@ export function StudentDetailPanel({
         <dd>{teacherRecommendedPrompt(student)}</dd>
       </dl>
       <div className="teacher-actions">
-        <button type="button" className="tool-button" onClick={() => onOverride("skip")}>
+        <button type="button" className="tool-button" disabled={Boolean(busyAction)} onClick={() => onOverride("skip")}>
           <SkipForward size={18} />
           Skip node
         </button>
-        <button type="button" className="tool-button" onClick={() => onOverride("reset")}>
+        <button type="button" className="tool-button" disabled={Boolean(busyAction)} onClick={() => onOverride("reset")}>
           <RotateCcw size={18} />
           Reset room
         </button>
-        <button type="button" className="tool-button" onClick={() => onOverride("assist")}>
+        <button type="button" className="tool-button" disabled={Boolean(busyAction)} onClick={() => onOverride("assist")}>
           <UserCheck size={18} />
           Mark assisted
         </button>

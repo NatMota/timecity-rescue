@@ -5,13 +5,16 @@ import {
   Activity,
   AlertTriangle,
   Bot,
+  CheckCircle2,
   Gauge,
   GraduationCap,
   LogIn,
   MousePointerClick,
-  ShieldCheck,
+  RefreshCw,
   Users,
+  XCircle,
 } from "lucide-react";
+import { TeamAccessTable } from "@/components/team/TeamAccessTable";
 import { getTeamDashboardData } from "@/lib/team/dashboard";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,23 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
 function formatDate(value: string | null) {
   if (!value) return "Never";
   return dateTimeFormatter.format(new Date(value));
+}
+
+function formatTime(value: string | null) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatRelative(value: string | null) {
+  if (!value) return "never";
+  const diffMs = Date.now() - new Date(value).getTime();
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
 }
 
 function formatNumber(value: number | null | undefined) {
@@ -46,6 +66,79 @@ function formatDelta(value: unknown, suffix = "") {
   if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   if (value === 0) return `0${suffix}`;
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}${suffix}`;
+}
+
+function deltaTone(metric: "wrong" | "retry" | "score" | "completion", value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value === 0) return "neutral";
+  if (metric === "wrong" || metric === "retry") return value > 0 ? "bad" : "good";
+  return value > 0 ? "good" : "bad";
+}
+
+function runIdentity(run: { generatedAt: string; seedCount: number; judgeScores: Record<string, unknown> }) {
+  const judged = Object.keys(run.judgeScores || {}).length ? "judged" : "not judged";
+  return `${formatRelative(run.generatedAt)} · ${run.seedCount} seeds · ${judged}`;
+}
+
+function RequirementStat({
+  label,
+  actual,
+  required,
+  suffix = "",
+}: {
+  label: string;
+  actual: number | null | undefined;
+  required: number | null | undefined;
+  suffix?: string;
+}) {
+  const actualValue = typeof actual === "number" && Number.isFinite(actual) ? actual : 0;
+  const requiredValue = typeof required === "number" && Number.isFinite(required) ? required : 0;
+  const pass = actualValue >= requiredValue;
+  return (
+    <div className={pass ? "requirement-pass" : "requirement-fail"}>
+      <span>{label}</span>
+      <strong>
+        {formatNumber(actual)}
+        {suffix} <small>(min {formatNumber(required)}{suffix})</small>
+      </strong>
+      {pass ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
+    </div>
+  );
+}
+
+function JudgeScoreBar({
+  label,
+  score,
+  passRate,
+  delta,
+  tension,
+}: {
+  label: string;
+  score: number | null | undefined;
+  passRate?: number | null;
+  delta?: unknown;
+  tension?: number | null;
+}) {
+  const value = typeof score === "number" && Number.isFinite(score) ? score : 0;
+  const pass = value >= 4 && (passRate === null || passRate === undefined || passRate > 0);
+  const width = `${Math.min(100, Math.max(0, (value / 5) * 100))}%`;
+  return (
+    <div className="judge-score-row">
+      <div>
+        <span>{label}</span>
+        <strong>{formatScore(score)}</strong>
+      </div>
+      <div className={pass ? "judge-bar judge-pass" : "judge-bar judge-fail"} aria-label={`${label} score ${formatScore(score)} of 5`}>
+        <span className="judge-bar-fill" style={{ width }} />
+        <span className="judge-threshold" />
+      </div>
+      <small>
+        threshold 4.0
+        {typeof passRate === "number" ? ` · pass ${formatNumber(passRate)}%` : ""}
+        {typeof delta === "number" ? ` · Δ ${formatDelta(delta)}` : ""}
+        {typeof tension === "number" ? ` · tension ${formatScore(tension)}` : ""}
+      </small>
+    </div>
+  );
 }
 
 function MetricCard({
@@ -93,6 +186,17 @@ export default async function TeamDashboardPage() {
   const uxScore = evalCurrent?.judgeScores.ux_accessibility;
   const safetyScore = evalCurrent?.judgeScores.child_safety;
   const evalDeltas = data.evals?.deltas || {};
+  const topEvalIssues = evalCurrent
+    ? Object.entries(evalCurrent.judgeScores || {})
+        .flatMap(([judgeId, judge]) =>
+          (judge.issues || []).map((issue) => ({
+            judgeId,
+            title: judge.title,
+            issue,
+          })),
+        )
+        .slice(0, 3)
+    : [];
 
   return (
     <main className="team-shell">
@@ -100,9 +204,13 @@ export default async function TeamDashboardPage() {
         <div>
           <p className="eyebrow">Team dashboard</p>
           <h1>TimeCity Operations</h1>
-          <p>Generated {formatDate(data.generatedAt)}</p>
+          <p>Refreshed at {formatTime(data.generatedAt)}</p>
         </div>
         <div className="team-actions">
+          <Link className="quiet-button" href="/team">
+            <RefreshCw size={18} />
+            Refresh
+          </Link>
           <Link className="secondary-action" href="/teacher">
             <GraduationCap size={18} />
             Teacher
@@ -158,60 +266,62 @@ export default async function TeamDashboardPage() {
           detail={`${data.totals.fastFirstChoices} fast first choices`}
           icon={<Activity size={22} />}
         />
-        <MetricCard
-          label="Persona eval"
-          value={evalCurrent ? (evalCurrent.pass ? "Pass" : "Fail") : "-"}
-          detail={
-            evalCurrent
-              ? `${evalCurrent.environment} · ${evalCurrent.totalRuns} runs · ${formatNumber(
-                  evalCurrent.generatedScenes,
-                )}/${formatNumber(evalCurrent.minGeneratedScenes)} generated · ${formatNumber(
-                  evalCurrent.generatedSceneRatio,
-                )}%/${formatNumber(evalCurrent.minGeneratedRatio)}% overall · ${formatNumber(
-                  evalCurrent.generatedEligibleRatio,
-                )}%/${formatNumber(evalCurrent.minGeneratedEligibleRatio)}% eligible · ${formatNumber(
-                  evalCurrent.langfuse?.scoreCount as number | undefined,
-                )} Langfuse scores`
-              : "No eval artifact yet"
-          }
-          icon={<ShieldCheck size={22} />}
-        />
       </section>
 
       {evalCurrent ? (
-        <section className="team-grid eval-grid">
-          <article className="team-panel">
+        <section className="team-grid eval-grid eval-feature-grid">
+          <article className="team-panel eval-feature-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Evals</p>
-                <h2>Current vs baseline</h2>
+                <p className="eyebrow">Persona evals</p>
+                <h2>{evalCurrent.pass ? "Ship gate passing" : "Ship gate failing"}</h2>
               </div>
+              <span className={`eval-status ${evalCurrent.pass ? "status-pass" : "status-fail"}`}>
+                {evalCurrent.pass ? "Pass" : "Fail"}
+              </span>
+            </div>
+            <div className="eval-requirement-grid">
+              <RequirementStat label="Generated scenes" actual={evalCurrent.generatedScenes} required={evalCurrent.minGeneratedScenes} />
+              <RequirementStat label="Generated overall" actual={evalCurrent.generatedSceneRatio} required={evalCurrent.minGeneratedRatio} suffix="%" />
+              <RequirementStat
+                label="Generated eligible"
+                actual={evalCurrent.generatedEligibleRatio}
+                required={evalCurrent.minGeneratedEligibleRatio}
+                suffix="%"
+              />
+              <RequirementStat
+                label="Langfuse scores"
+                actual={evalCurrent.langfuse?.scoreCount as number | undefined}
+                required={2 + evalCurrent.totalRuns * Object.keys(evalCurrent.judgeScores || {}).length * 2}
+              />
             </div>
             <div className="eval-summary-grid">
               <div>
                 <span>Completion</span>
                 <strong>{evalCurrent.completionRate}%</strong>
-                <small>Baseline {evalBaseline ? `${evalBaseline.completionRate}%` : "-"} · Δ {formatDelta(evalDeltas.completionRate, "%")}</small>
+                <small className={`delta-${deltaTone("completion", evalDeltas.completionRate)}`}>
+                  Baseline {evalBaseline ? `${evalBaseline.completionRate}%` : "-"} · Δ {formatDelta(evalDeltas.completionRate, "%")}
+                </small>
               </div>
               <div>
                 <span>Wrong choices</span>
                 <strong>{formatScore(evalCurrent.averageWrong)}</strong>
-                <small>Δ {formatDelta(evalDeltas.averageWrong)}</small>
+                <small className={`delta-${deltaTone("wrong", evalDeltas.averageWrong)}`}>Δ {formatDelta(evalDeltas.averageWrong)}</small>
               </div>
               <div>
                 <span>Retries</span>
                 <strong>{formatScore(evalCurrent.averageRetries)}</strong>
-                <small>Δ {formatDelta(evalDeltas.averageRetries)}</small>
+                <small className={`delta-${deltaTone("retry", evalDeltas.averageRetries)}`}>Δ {formatDelta(evalDeltas.averageRetries)}</small>
               </div>
               <div>
-                <span>Generated route</span>
-                <strong>{formatNumber(evalCurrent.generatedEligibleRatio)}%</strong>
-                <small>{formatNumber(evalCurrent.generatedEligibleScenes)} of {formatNumber(evalCurrent.eligibleGeneratedScenesSeen)} eligible scenes</small>
+                <span>Runs</span>
+                <strong>{formatNumber(evalCurrent.totalRuns)}</strong>
+                <small>{runIdentity(evalCurrent)}</small>
               </div>
             </div>
             <p className="eval-run-note">
               Current {evalCurrent.runId} · {formatDate(evalCurrent.generatedAt)}
-              {evalBaseline ? ` · baseline ${evalBaseline.runId}` : ""}
+              {evalBaseline ? ` · vs ${runIdentity(evalBaseline)} (${evalBaseline.runId})` : " · no baseline attached"}
               {data.evals?.availability ? ` · source ${data.evals.availability.kind.replaceAll("_", " ")}` : ""}
             </p>
           </article>
@@ -223,28 +333,28 @@ export default async function TeamDashboardPage() {
                 <h2>Learning vs fun</h2>
               </div>
             </div>
-            <div className="signal-list eval-judge-list">
-              <div>
-                <span>Teacher syllabus</span>
-                <strong>{formatScore(teacherScore?.averageScore)}</strong>
-                <small>Δ {formatDelta(evalDeltas.teacherScore)} · pass {formatNumber(teacherScore?.passRate)}%</small>
-              </div>
-              <div>
-                <span>Student fun</span>
-                <strong>{formatScore(studentFunScore?.averageScore)}</strong>
-                <small>Δ {formatDelta(evalDeltas.studentFunScore)} · tension {formatScore(studentFunScore?.averageTension)}</small>
-              </div>
-              <div>
-                <span>UX/accessibility</span>
-                <strong>{formatScore(uxScore?.averageScore)}</strong>
-                <small>Δ {formatDelta(evalDeltas.uxScore)}</small>
-              </div>
-              <div>
-                <span>Child safety</span>
-                <strong>{formatScore(safetyScore?.averageScore)}</strong>
-                <small>Δ {formatDelta(evalDeltas.safetyScore)}</small>
-              </div>
+            <div className="eval-judge-bars">
+              <JudgeScoreBar label="Teacher syllabus" score={teacherScore?.averageScore} passRate={teacherScore?.passRate} delta={evalDeltas.teacherScore} />
+              <JudgeScoreBar
+                label="Student fun"
+                score={studentFunScore?.averageScore}
+                passRate={studentFunScore?.passRate}
+                delta={evalDeltas.studentFunScore}
+                tension={studentFunScore?.averageTension}
+              />
+              <JudgeScoreBar label="UX/accessibility" score={uxScore?.averageScore} passRate={uxScore?.passRate} delta={evalDeltas.uxScore} />
+              <JudgeScoreBar label="Child safety" score={safetyScore?.averageScore} passRate={safetyScore?.passRate} delta={evalDeltas.safetyScore} />
             </div>
+            {topEvalIssues.length ? (
+              <div className="top-issues">
+                <h3>Top issues</h3>
+                {topEvalIssues.map((item) => (
+                  <p key={`${item.judgeId}-${item.issue}`}>
+                    <strong>{item.title}:</strong> {item.issue}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </article>
         </section>
       ) : null}
@@ -257,34 +367,7 @@ export default async function TeamDashboardPage() {
               <h2>Team access</h2>
             </div>
           </div>
-          <div className="team-table-wrap">
-            <table className="team-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Last sign-in</th>
-                  <th>Last active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.users.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <strong>{user.name}</strong>
-                      <span>{user.email}</span>
-                    </td>
-                    <td>{formatDate(user.lastSignInAt)}</td>
-                    <td>{formatDate(user.lastActiveAt)}</td>
-                  </tr>
-                ))}
-                {!data.users.length ? (
-                  <tr>
-                    <td colSpan={3}>No Clerk users loaded.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+          <TeamAccessTable users={data.users} />
         </article>
 
         <article className="team-panel">

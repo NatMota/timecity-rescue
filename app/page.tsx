@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Bot, GraduationCap, ShieldCheck } from "lucide-react";
 
 export default function Home() {
@@ -7,29 +8,34 @@ export default function Home() {
       <section className="home-hero">
         <div>
           <p className="eyebrow">TimeCity Rescue</p>
-          <h1>A teacher-controlled AI-readiness adventure</h1>
+          <h1>Pupils solve the mystery of the missing minute and learn how AI really works</h1>
           <p className="lead">
-            Pupils aged 9-10 train COG-9 through closed choices, fixed rooms and safe adaptive hints. The child never chats
-            freely with AI.
+            A classroom adventure for pupils aged 9–10. The story adapts to each pupil&apos;s level, always inside fixed
+            rooms, closed choices and teacher controls.
           </p>
+          <div className="trust-strip" aria-label="Safety controls">
+            <span>No student chat</span>
+            <span>Fixed rooms</span>
+            <span>Teacher override</span>
+          </div>
           <div className="home-actions">
-            <Link className="primary-action" href="/teacher">
-              <GraduationCap size={20} />
-              Open teacher dashboard
-            </Link>
-            <Link className="secondary-action" href="/play/DEMO">
+            <Link className="primary-action" href="/play/DEMO">
               Try student mission
               <ArrowRight size={18} />
             </Link>
+            <Link className="secondary-action" href="/teacher">
+              <GraduationCap size={20} />
+              Open teacher dashboard
+            </Link>
           </div>
         </div>
-        <div className="home-visual">
-          <div className="time-orb" />
-          <div className="city-stack">
-            <span />
-            <span />
-            <span />
-            <span />
+        <div className="home-visual product-scene" aria-label="TimeCity gameplay preview">
+          <Image src="/assets/rooms/future-trainstation.png" alt="" fill sizes="(max-width: 900px) 100vw, 440px" className="home-scene-bg" priority />
+          <Image src="/assets/characters/cutouts/cog9-future-worried.png" alt="COG-9 station helper robot" width={290} height={580} className="home-scene-character" priority />
+          <div className="home-dialogue-preview">
+            <span>COG-9</span>
+            <strong>The clocks disagree. One minute is missing.</strong>
+            <p>Check the evidence before moving another train.</p>
           </div>
         </div>
       </section>
@@ -43,7 +49,7 @@ export default function Home() {
         <article>
           <Bot size={28} />
           <h2>Adaptive wording</h2>
-          <p>The LLM may adapt choices and hints, but validated fallbacks always work.</p>
+          <p>The story adapts to each pupil&apos;s level, always inside limits you set.</p>
         </article>
         <article>
           <GraduationCap size={28} />
@@ -51,6 +57,11 @@ export default function Home() {
           <p>Progress, risk flags and overrides stay in the teacher control room.</p>
         </article>
       </section>
+      <footer className="site-footer">
+        <Link href="/sign-in">Sign in</Link>
+        <Link href="/team">Team</Link>
+        <a href="mailto:nat.c.mota@gmail.com">Contact</a>
+      </footer>
     </main>
   );
 }

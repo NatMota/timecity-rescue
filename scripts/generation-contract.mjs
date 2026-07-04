@@ -7,9 +7,10 @@ const argValue = (name, fallback) => {
 
 const baseUrl = argValue("--base", process.env.TIMECITY_BASE_URL || "http://localhost:3010");
 const expectMode = argValue("--expect", "generated");
+const fullEpisodeNodes = Array.from({ length: 24 }, (_, index) => `H1_N${String(index + 1).padStart(2, "0")}`).join(",");
 const targetNodes = argValue(
   "--nodes",
-  process.env.TIMECITY_GENERATION_CONTRACT_NODES || "H1_N01,H1_N02,H1_N03,H1_N04,H1_N05,H1_N06,H1_N07,H1_N08,H1_N09,H1_N10,H1_N11,H1_N12",
+  process.env.TIMECITY_GENERATION_CONTRACT_NODES || fullEpisodeNodes,
 )
   .split(",")
   .map((value) => value.trim())

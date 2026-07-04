@@ -15,7 +15,25 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "TimeCity Rescue",
-  description: "Teacher-controlled AI-readiness adventure for 9-10-year-olds.",
+  description: "Pupils solve the mystery of the missing minute and learn how AI really works.",
+  openGraph: {
+    title: "TimeCity Rescue",
+    description: "A classroom AI-readiness adventure with fixed rooms, closed choices and teacher controls.",
+    images: [
+      {
+        url: "/assets/backgrounds/splash-screen.png",
+        width: 1672,
+        height: 941,
+        alt: "TimeCity Rescue splash screen",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TimeCity Rescue",
+    description: "Solve the mystery of the missing minute.",
+    images: ["/assets/backgrounds/splash-screen.png"],
+  },
 };
 
 export default function RootLayout({

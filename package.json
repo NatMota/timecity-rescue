@@ -10,7 +10,7 @@
     "episode:alignment": "node scripts/episode-alignment.mjs",
     "episode:pacing": "node scripts/episode-pacing.mjs",
     "persona:playthrough": "node scripts/persona-playthrough.mjs",
-    "eval:personas": "node scripts/persona-playthrough.mjs --seeds=3 --judge --require-judge --require-generated --min-generated-scenes=9 --min-generated-ratio=0.4 --min-generated-eligible-ratio=0.75",
+    "eval:personas": "node scripts/persona-playthrough.mjs --seeds=3 --concurrency=3 --judge --judge-concurrency=2 --require-judge --require-generated --min-generated-scenes=18 --min-generated-ratio=0.75 --min-generated-eligible-ratio=0.85",
     "eval:generation-contract": "node scripts/generation-contract.mjs",
     "eval:judge-calibration": "node scripts/judge-calibration.mjs",
     "runtime:observability": "node scripts/runtime-observability.mjs",

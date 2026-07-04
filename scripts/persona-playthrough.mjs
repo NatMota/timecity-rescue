@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -22,6 +23,11 @@ loadEnvFile("/tmp/timecity-runtime-eval.env");
 
 const baseUrl = argValue("--base", process.env.TIMECITY_BASE_URL || "http://localhost:3001");
 const maxSteps = Number(argValue("--max-steps", "50"));
+const runConcurrency = positiveInteger(argValue("--concurrency", process.env.TIMECITY_EVAL_CONCURRENCY || "1"), 1);
+const judgeConcurrency = positiveInteger(
+  argValue("--judge-concurrency", process.env.TIMECITY_JUDGE_CONCURRENCY || "1"),
+  1,
+);
 const seedCount = Number(argValue("--seeds", process.env.TIMECITY_PERSONA_SEEDS || "1"));
 const useJudge = args.has("--judge");
 const requireJudge = args.has("--require-judge");
@@ -29,15 +35,15 @@ const allowFallbackJudging = args.has("--allow-fallback-judging") || truthy(proc
 const requireGenerated =
   args.has("--require-generated") || truthy(process.env.TIMECITY_REQUIRE_GENERATED_EVAL) || (useJudge && !allowFallbackJudging);
 const minGeneratedScenes = Number(
-  argValue("--min-generated-scenes", process.env.TIMECITY_MIN_GENERATED_SCENES || (requireGenerated ? "9" : "0")),
+  argValue("--min-generated-scenes", process.env.TIMECITY_MIN_GENERATED_SCENES || (requireGenerated ? "18" : "0")),
 );
 const minGeneratedRatio = Number(
-  argValue("--min-generated-ratio", process.env.TIMECITY_MIN_GENERATED_RATIO || (requireGenerated ? "0.4" : "0")),
+  argValue("--min-generated-ratio", process.env.TIMECITY_MIN_GENERATED_RATIO || (requireGenerated ? "0.75" : "0")),
 );
 const minGeneratedEligibleRatio = Number(
   argValue(
     "--min-generated-eligible-ratio",
-    process.env.TIMECITY_MIN_GENERATED_ELIGIBLE_RATIO || (requireGenerated ? "0.75" : "0"),
+    process.env.TIMECITY_MIN_GENERATED_ELIGIBLE_RATIO || (requireGenerated ? "0.85" : "0"),
   ),
 );
 const model = process.env.OPENAI_EVAL_MODEL || process.env.OPENAI_MODEL || "gpt-4.1";
@@ -159,14 +165,17 @@ const legacyConsequences = new Set([
 
 async function main() {
   const sdk = maybeStartLangfuse();
-  const results = [];
   try {
+    const playthroughs = [];
     for (const persona of personas) {
       for (let seed = 1; seed <= seedCount; seed += 1) {
-        console.error(`[eval] playthrough ${persona.id} seed ${seed}/${seedCount}`);
-        results.push(await runPersona(persona, seed));
+        playthroughs.push({ persona, seed });
       }
     }
+    const results = await mapLimit(playthroughs, runConcurrency, async ({ persona, seed }) => {
+        console.error(`[eval] playthrough ${persona.id} seed ${seed}/${seedCount}`);
+        return runPersona(persona, seed);
+    });
 
     if (useJudge) {
       for (const result of results) {
@@ -194,6 +203,8 @@ async function main() {
         ? {
             model,
             required: requireJudge,
+            runConcurrency,
+            judgeConcurrency,
             requireGenerated,
             allowFallbackJudging,
             requireBaseline,
@@ -299,6 +310,9 @@ async function runPersona(persona, seed = 1) {
       room: scene.room_slug,
       speaker: scene.dialogue.speaker_name,
       dialogue: scene.dialogue.text,
+      readAgain: scene.dialogue.read_again_text,
+      clue: scene.clue?.text,
+      hints: scene.hint_ladder?.hints ?? [],
       difficulty: scene.difficulty_level,
       choiceCount: scene.choices.length,
       hintStep: scene.hint_ladder?.step,
@@ -396,6 +410,8 @@ function deterministicSessionGates(transcript, persona, student) {
   const semanticMapsPresent = transcript.every((entry) =>
     entry.choices.every((choice) => typeof entry.choiceSemanticMap?.[choice.id] === "string"),
   );
+  const answerLeakageIssues = transcript.flatMap(answerLeakageIssuesForEntry).slice(0, 12);
+  const answerLeakageClear = answerLeakageIssues.length === 0;
   const consequencesSpecific = transcript.every((entry) => !legacyConsequences.has(entry.consequence));
   const hintLadderPresent = transcript.every((entry) => typeof entry.hintStep === "number" && entry.hintStep >= 1);
   const generatedSceneCount = transcript.filter((entry) => entry.generated).length;
@@ -428,6 +444,7 @@ function deterministicSessionGates(transcript, persona, student) {
     worldStateVisible,
     difficultyChangesPayload,
     semanticMapsPresent,
+    answerLeakageClear,
     consequencesSpecific,
     hintLadderPresent,
     generatedScenesObserved,
@@ -449,8 +466,95 @@ function deterministicSessionGates(transcript, persona, student) {
     minGeneratedEligibleRatio: round1(minGeneratedEligibleRatio * 100),
     difficultyLevels: Array.from(new Set(transcript.map((entry) => entry.difficulty))).sort(),
     choiceCounts: Array.from(new Set(transcript.map((entry) => entry.choiceCount))).sort(),
+    answerLeakageIssues,
     checks,
   };
+}
+
+function answerLeakageIssuesForEntry(entry) {
+  const bestChoices = entry.choices.filter((choice) => String(entry.choiceSemanticMap?.[choice.id] || "").startsWith("best:"));
+  if (!bestChoices.length) return [`${entry.node}: no best choice available for leakage scan`];
+  const leadTexts = [
+    ["dialogue", entry.dialogue],
+    ["read_again", entry.readAgain],
+    ["clue", entry.clue],
+    ...(entry.hints || []).map((hint, index) => [`hint_${index + 1}`, hint]),
+  ].filter(([, text]) => typeof text === "string" && text.trim());
+  const issues = [];
+  for (const [surface, text] of leadTexts) {
+    for (const choice of bestChoices) {
+      if (leaksBestChoice(text, choice.text)) {
+        issues.push(`${entry.node}:${surface} leaks choice ${choice.id}`);
+      }
+    }
+  }
+  return issues;
+}
+
+function leaksBestChoice(text, bestChoiceText) {
+  const textNorm = normalizeLeakText(text);
+  const bestNorm = normalizeLeakText(bestChoiceText);
+  if (bestNorm.length >= 24 && textNorm.includes(bestNorm)) return true;
+
+  const bestTokens = leakageTokens(bestChoiceText);
+  if (bestTokens.length < 3) return false;
+  const textTokens = leakageTokens(text);
+  const shared = bestTokens.filter((token) => textTokens.includes(token));
+  if (shared.length < 3) return false;
+
+  const hasDirective = /\b(pick|choose|select|use|check|compare|ask|inspect|read|run|balance|revise|explain|recommend|send|stop)\b/i.test(
+    text,
+  );
+  const distinctiveRatio = shared.length / Math.max(1, Math.min(bestTokens.length, 7));
+  return hasDirective && distinctiveRatio >= 0.5;
+}
+
+function normalizeLeakText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function leakageTokens(text) {
+  const stop = new Set([
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "because",
+    "before",
+    "by",
+    "for",
+    "from",
+    "if",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "then",
+    "this",
+    "to",
+    "what",
+    "when",
+    "which",
+    "with",
+  ]);
+  return Array.from(
+    new Set(
+      normalizeLeakText(text)
+        .split(/\s+/)
+        .filter((token) => token.length > 2 && !stop.has(token)),
+    ),
+  );
 }
 
 async function maybeRunExploration(sessionCode, studentId, scene, persona, attempts, step) {
@@ -521,6 +625,9 @@ async function judgePlaythrough(result) {
     room: entry.room,
     speaker: entry.speaker,
     dialogue: entry.dialogue,
+    readAgain: entry.readAgain,
+    clue: entry.clue,
+    hints: entry.hints,
     difficulty: entry.difficulty,
     choiceCount: entry.choiceCount,
     hintStep: entry.hintStep,
@@ -535,17 +642,16 @@ async function judgePlaythrough(result) {
     consequence: entry.consequence,
     completed: entry.completed,
   }));
-  const results = [];
-  for (const judge of evalJudges) {
+  const results = await mapLimit(evalJudges, judgeConcurrency, async (judge) => {
     console.error(`[eval] ${result.persona} seed ${result.seed}: ${judge.id}`);
     const response = await parseJudgeWithRetry(client, judge, result, compactTranscript);
     const parsed = response.output_parsed ?? parseJsonish(response.output_text || "{}");
-    results.push({
+    return {
       judge: judge.id,
       title: judge.title,
       result: parsed,
-    });
-  }
+    };
+  });
   const teacher = results.find((item) => item.judge === "teacher_syllabus")?.result;
   const student = results.find((item) => item.judge === "student_fun")?.result;
   return {
@@ -584,6 +690,30 @@ function langfuseBaseUrl() {
     /\/$/,
     "",
   );
+}
+
+function langfuseTraceId(value) {
+  return crypto.createHash("sha256").update(String(value)).digest("hex").slice(0, 32);
+}
+
+function langfuseSpanId(value) {
+  return crypto.createHash("sha256").update(String(value)).digest("hex").slice(0, 16);
+}
+
+function traceIdForRun() {
+  return langfuseTraceId(`timecity-eval:${environment}:${runId}:summary`);
+}
+
+function traceIdForResult(result) {
+  return langfuseTraceId(`timecity-eval:${environment}:${runId}:${result.persona}:seed:${result.seed}`);
+}
+
+function parentSpanContextForResult(result) {
+  return {
+    traceId: traceIdForResult(result),
+    spanId: langfuseSpanId(`timecity-eval:${environment}:${runId}:${result.persona}:seed:${result.seed}:parent`),
+    traceFlags: 1,
+  };
 }
 
 async function postLangfuseScores(report) {
@@ -629,6 +759,7 @@ function buildLangfuseScores(report) {
       name: "timecity.eval.mechanics_pass",
       value: report.mechanicsPass ? 1 : 0,
       dataType: "NUMERIC",
+      traceId: traceIdForRun(),
       sessionId: runId,
       comment: `Mechanics gates for ${environment}`,
       metadata: { environment, runId, baseUrl },
@@ -637,6 +768,7 @@ function buildLangfuseScores(report) {
       name: "timecity.eval.overall_pass",
       value: report.pass ? 1 : 0,
       dataType: "NUMERIC",
+      traceId: traceIdForRun(),
       sessionId: runId,
       comment: `Overall persona eval pass for ${environment}`,
       metadata: { environment, runId, baseUrl },
@@ -645,10 +777,12 @@ function buildLangfuseScores(report) {
   for (const result of report.results) {
     if (!result.llmJudge?.judges) continue;
     for (const judge of result.llmJudge.judges) {
+      const traceId = traceIdForResult(result);
       scores.push({
         name: `timecity.eval.${judge.judge}.score`,
         value: judge.result.score_1_to_5,
         dataType: "NUMERIC",
+        traceId,
         sessionId: runId,
         comment: `${judge.title}: ${result.persona} seed ${result.seed}`,
         metadata: {
@@ -668,6 +802,7 @@ function buildLangfuseScores(report) {
         name: `timecity.eval.${judge.judge}.tension`,
         value: judge.result.story_tension_score_1_to_5,
         dataType: "NUMERIC",
+        traceId,
         sessionId: runId,
         comment: `${judge.title} story tension: ${result.persona} seed ${result.seed}`,
         metadata: {
@@ -688,6 +823,7 @@ function getObservedJudgeClient(result) {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   if (!process.env.LANGFUSE_PUBLIC_KEY || !process.env.LANGFUSE_SECRET_KEY) return client;
   return observeOpenAI(client, {
+    parentSpanContext: parentSpanContextForResult(result),
     traceName: `timecity-persona-eval-${result.persona}-seed-${result.seed}`,
     generationName: "persona-judge",
     sessionId: runId,
@@ -767,6 +903,28 @@ function isRateLimit(error) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function mapLimit(items, limit, mapper) {
+  const concurrency = Math.max(1, Math.min(limit, items.length || 1));
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  await Promise.all(
+    Array.from({ length: concurrency }, async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index], index);
+      }
+    }),
+  );
+  return results;
+}
+
+function positiveInteger(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.floor(parsed);
 }
 
 function truthy(value) {
