@@ -8,6 +8,7 @@ export type RoomExploration = {
   title: string;
   starter: string;
   readyLabel: string;
+  minQuestionsBeforeChallenge?: number;
   questions: RoomExplorationQuestion[];
 };
 
@@ -24,83 +25,87 @@ export function getRoomExploration(nodeKey: string): RoomExploration | null {
 const ROOM_EXPLORATION_BY_NODE: Record<string, RoomExploration> = {
   H1_N01: {
     title: "Station clue check",
-    starter: "Pick a question to inspect the station before touching the controls.",
+    starter: "Three station displays are arguing. Tap a clue before touching the controls.",
     readyLabel: "Try the station challenge",
+    minQuestionsBeforeChallenge: 1,
     questions: [
       {
         id: "station-clues",
-        question: "Show me the clues",
+        question: "Check the platform sign",
         answer:
-          "The platform sign is green, the main clock is one minute behind it, and the dispatch log says three trains already left.",
+          "The sign is bright green and says GO at 08:05. COG-9 trusts it because it is the newest signal.",
       },
       {
         id: "cog9-role",
-        question: "Who is COG-9?",
+        question: "Check the main clock",
         answer:
-          "COG-9 is the station helper robot. He reads station signals and suggests train movements, but he needs checked evidence first.",
+          "The old clock ticks loudly at 08:04. Ada taps the glass and says it has not skipped before.",
       },
       {
         id: "rush-risk",
-        question: "What happens if we rush?",
+        question: "Check the dispatch log",
         answer:
-          "Another train could leave on the wrong minute before anyone checks power, cargo, and passenger safety.",
+          "The log already lists three departures. COG-9 whispers: 'I sent them when the green sign blinked.'",
       },
     ],
   },
   H1_N04: {
     title: "Market cargo check",
-    starter: "Inspect the cargo records before the next train leaves.",
+    starter: "The market platform is noisy. Find which clue a route robot could actually use.",
     readyLabel: "Try the cargo challenge",
+    minQuestionsBeforeChallenge: 1,
     questions: [
       {
         id: "cargo-stakes",
-        question: "What is on the train?",
+        question: "Open the blue crate record",
         answer:
-          "One carriage has frozen medicine, one has glass panels, and one has heavy repair parts. They cannot all use the same route.",
+          "Frozen medicine. The label says it warms up if the route waits too long.",
       },
       {
         id: "record-source",
-        question: "Who made the records?",
+        question: "Scan the glass crate",
         answer:
-          "Market loaders scanned each crate as it crossed the platform gate. Some nearby signs are just adverts.",
+          "Glass panels. The scanner adds a tiny crack icon beside sharp turns.",
       },
       {
         id: "route-risk",
-        question: "What could go wrong?",
+        question: "Read the crowd board",
         answer:
-          "A sharp turn could break glass, a slow platform could warm medicine, and a weak track could fail under heavy cargo.",
+          "Passenger queues are growing. Nix likes this board because it makes speed feel urgent.",
       },
     ],
   },
   H1_N07: {
     title: "Reactor loop check",
-    starter: "The charger is repeating. Inspect the loop before adding more power.",
+    starter: "The charger keeps chanting the same command. Find what it can and cannot see.",
     readyLabel: "Try the loop challenge",
+    minQuestionsBeforeChallenge: 1,
     questions: [
       {
         id: "loop-sound",
-        question: "What is repeating?",
+        question: "Touch the command panel",
         answer:
-          "The charger keeps sending a small burst of power, then immediately starts the same command again.",
+          "The panel prints SEND POWER, then prints SEND POWER again before COG-9 can blink.",
       },
       {
         id: "battery-state",
-        question: "What does the battery show?",
+        question: "Check the battery needle",
         answer:
-          "The station battery is climbing, but the charger does not look at the battery before repeating.",
+          "The needle is climbing. It is not in the red yet, but it is moving faster than Ada likes.",
       },
       {
         id: "loop-risk",
-        question: "Why is that risky?",
+        question: "Ask COG-9 what he hears",
         answer:
-          "A loop with no stop check can waste power or overcharge the station while everyone watches the train board.",
+          "COG-9 counts each repeat out loud. He gets to eleven and starts looking worried.",
       },
     ],
   },
   H1_N09: {
     title: "1888 platform check",
-    starter: "The old station has no smart screens. Check what a human worker can follow.",
+    starter: "The old station has no smart screens. Work out what the human worker can follow.",
     readyLabel: "Try the sequence challenge",
+    minQuestionsBeforeChallenge: 1,
     questions: [
       {
         id: "old-station",
@@ -116,22 +121,23 @@ const ROOM_EXPLORATION_BY_NODE: Record<string, RoomExploration> = {
       },
       {
         id: "order-risk",
-        question: "Why does order matter?",
+        question: "Watch the route lever",
         answer:
-          "If someone chooses the track before checking the signal, the train can leave before the route is safe.",
+          "The lever is heavy. Once the worker pulls it, the signal bell answers before anyone can undo it.",
       },
     ],
   },
   H1_N10: {
     title: "Telegraph wording check",
-    starter: "The telegraph message is too vague. Inspect what is missing.",
+    starter: "The telegraph message is too vague. Find the missing pieces.",
     readyLabel: "Try the prompt challenge",
+    minQuestionsBeforeChallenge: 1,
     questions: [
       {
         id: "message",
-        question: "What does the message say?",
+        question: "Read the tape",
         answer:
-          "It only says 'Send train soon.' Nobody can tell which train, which track, or what safety check comes first.",
+          "The tape only says: 'Send train soon.' The clerk frowns and asks, 'Which train?'",
       },
       {
         id: "receiver",
@@ -141,32 +147,33 @@ const ROOM_EXPLORATION_BY_NODE: Record<string, RoomExploration> = {
       },
       {
         id: "bad-prompt-risk",
-        question: "What could go wrong?",
+        question: "Check the second clerk",
         answer:
-          "A vague instruction can make two people do different things while both believe they followed the order.",
+          "The second clerk points at a different track. Both clerks think they are following the message.",
       },
     ],
   },
   H1_N11: {
     title: "Mayor's pressure check",
-    starter: "The mayor wants trains moving again. Inspect the trade-off before promising speed.",
+    starter: "The mayor wants trains moving now. Listen for what his speed plan ignores.",
     readyLabel: "Try the trade-off challenge",
+    minQuestionsBeforeChallenge: 1,
     questions: [
       {
         id: "mayor-ask",
-        question: "What does the mayor want?",
+        question: "Listen to the mayor",
         answer:
-          "Passengers are angry, so the mayor wants the fastest route. Ada is worried speed alone will hide the broken rule.",
+          "He points at the crowd and says the city will forgive anything if the next train is fast.",
       },
       {
         id: "constraints",
-        question: "What can stop a fast route?",
+        question: "Check the route board",
         answer:
-          "Low power, fragile cargo, crowded platforms, and a timetable change can all make the fastest route unsafe.",
+          "Power, cargo, and crowd lights sit beside the speed line. One of them keeps blinking amber.",
       },
       {
         id: "agent-plan",
-        question: "What are we building?",
+        question: "Inspect Ada's plan",
         answer:
           "A Station Helper Agent: a bounded helper that reads evidence and recommends a route for a human to approve.",
       },
@@ -174,26 +181,27 @@ const ROOM_EXPLORATION_BY_NODE: Record<string, RoomExploration> = {
   },
   H1_N13: {
     title: "Agent lab build check",
-    starter: "The lab doors open. Inspect the parts before building the helper agent.",
+    starter: "The lab doors open. The agent parts are scattered like puzzle pieces.",
     readyLabel: "Try the build challenge",
+    minQuestionsBeforeChallenge: 1,
     questions: [
       {
         id: "bench",
-        question: "What is on the workbench?",
+        question: "Look at the workbench",
         answer:
-          "There is a goal card, data slate, rule board, tool permissions panel, safety seal, and feedback meter.",
+          "Six parts are loose: a goal card, data slate, rule board, tool panel, safety seal, and feedback meter.",
       },
       {
         id: "agent-risk",
-        question: "What could go wrong?",
+        question: "Watch Nix",
         answer:
-          "An agent with a goal but no guardrail could chase speed and change the timetable without a human check.",
+          "Nix tries to stick a SPEED sticker over two parts before Ada catches his wrist.",
       },
       {
         id: "win-state",
-        question: "How do we restore the minute?",
+        question: "Ask COG-9 what he wants",
         answer:
-          "Build a helper that checks the right evidence, explains its route, and waits before changing the city.",
+          "COG-9 says, 'I want to help without accidentally becoming the problem.'",
       },
     ],
   },

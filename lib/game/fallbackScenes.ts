@@ -1,5 +1,7 @@
-import { NODE_BY_KEY } from "./fixedGraph";
-import type { Language, ScenePayload, StudentRecord } from "./types";
+import { choiceSemanticMapForNode, NODE_BY_KEY } from "./fixedGraph";
+import { difficultyForStudent } from "./adaptDifficulty";
+import { worldStateSummary } from "./worldState";
+import type { Choice, Language, ScenePayload, StudentRecord } from "./types";
 
 const RETRY_DIALOGUE: Partial<Record<string, Record<string, string>>> = {
   H1_N01: {
@@ -59,109 +61,11 @@ const GENERIC_RETRY_DIALOGUE: Record<string, string> = {
     "The simulator flashes amber. That move does not explain the broken signal yet. Try again by matching the evidence to the action.",
 };
 
-const ZH_LINES: Record<string, string> = {
-  H1_N01: "你好。我是 COG-9，车站助手机器人。我发出了三列火车，因为站台屏幕显示 GO，但 Ada 说主时钟和发车日志对不上。发出下一列火车前，我们应该先检查什么？",
-  H1_N02: "很好。现在我们知道 COG-9 读一个屏幕读得太快了。助手机器人需要有用输入，才能建议行动。COG-9 应该比较哪组输入？",
-  H1_N03: "大大的发车按钮就在这里。按下之前你应该先问什么？",
-  H1_N04: "市场记录显示哪些货箱易碎、需要冷藏或很重。哪条记录能帮助车站选择安全路线？",
-  H1_N05: "货物类型进入系统，轨道选择从系统出来。哪一个是输出？",
-  H1_N06: "选择能为 COG-9 保存干净货物和电力输入的背包物品。",
-  H1_N07: "备用充电器不断重复：送电、送电、送电。什么条件应该让循环停止？",
-  H1_N08: "使用调试扳手。它应该检查充电器规则中的哪一部分？",
-  H1_N09: "1888 年的车站工人需要简单步骤。完成路线指令：先检查电力，然后……",
-  H1_N10: "电报写着：“尽快发车。”使用提示卡。哪个版本更清楚？",
-  H1_N11: "市长希望乘客开心。为什么不让智能体每次都选最快路线？",
-  H1_N12: "在智能体改变时刻表前加入一个安全印章。哪条护栏应该加入规则？",
-  H1_N13: "智能体蓝图准备好了。车站助手智能体应该包含哪些部分？",
-  H1_N14: "完成规则：如果电力低而且货物易碎，那么……",
-  H1_N15: "我选择路线之后，应该检查什么反馈？",
-  H1_N16: "你的第一版蓝图在工作台上。哪一部分证明智能体有安全检查？",
-  H1_N17: "需要设置工具权限。车站助手智能体不先询问人类时，可以使用哪些工具？",
-  H1_N18: "车站助手智能体每次测试路线后可以记住一件事。哪种记忆有用？",
-  H1_N19: "如果智能体总是帮助喊得最大声的人，会怎样？很高效，也很戏剧化。",
-  H1_N20: "智能体准备测试了。第一次测试怎样最安全？",
-  H1_N21: "测试结果：大多数火车安全，但一列易碎货物火车仍走了快速轨道。我们应该检查什么？",
-  H1_N22: "修改规则：如果货物易碎而且电力低，那么……",
-  H1_N23: "解释最终规则，好让我把它加入智能体建造者护照。为什么它更安全？",
-  H1_N24: "你的车站助手智能体准备好了。护照应该写你建造了什么？",
-};
-
-const ZH_CHOICES: Record<string, string[]> = {
-  H1_N01: ["比较时钟、站台显示和发车日志。", "让 COG-9 更快发出下一批火车。", "相信最新的屏幕，忽略其他信息。"],
-  H1_N02: ["电力、货物类型和乘客数量。", "只看当前乘客数量。", "只看火车编号。"],
-  H1_N03: ["如果电力很低，会出什么问题？", "能不能更快发车？", "如果乘客在等，能不能忽略低电量？"],
-  H1_N04: ["货物类型记录。", "每个市场摊位旁边有多少人。", "货物标签的颜色。"],
-  H1_N05: ["轨道选择。", "货物类型。", "写着货物很急的便条。"],
-  H1_N06: ["使用数据板，因为它保存干净输入。", "使用安全印章，因为每条记录都需要先批准。", "使用提示卡，因为更清楚的文字可以保存数据。"],
-  H1_N07: ["车站电池足够满时停止。", "只要还有火车可能需要电，就继续充电。", "重复固定次数后停止，即使电力仍然低。"],
-  H1_N08: ["是否正在检查停止条件。", "充电器是否能更快送电。", "充电时刻表是否改变。"],
-  H1_N09: ["检查货物类型，再选择安全轨道。", "先随便选轨道，之后再检查输入。", "数完乘客后选择最短轨道。"],
-  H1_N10: ["如果电力安全，中午前把货运列车送到 B 轨道。", "站台准备好时发送货运列车。", "尽快发送货运列车。"],
-  H1_N11: ["因为安全和电力限制仍然重要。", "因为最快路线只应该给空车使用。", "因为一个目标可以替代所有限制。"],
-  H1_N12: ["改变主时刻表前先询问人类。", "让智能体隐藏更改以避免延误。", "移除所有限制，让它自由发挥。"],
-  H1_N13: ["目标、输入、工具、规则、安全检查和反馈。", "只有一个目标和一条路线规则。", "只有输入和输出，没有工具或安全检查。"],
-  H1_N14: ["把火车送到安全备用轨道。", "仍然送到最快轨道。", "删除货物记录。"],
-  H1_N15: ["火车是否安全准时到达。", "路线是否最快。", "仪表板是否显示绿色对勾。"],
-  H1_N16: ["改变主时刻表前先询问人类。", "一次成功测试后就能自动改路线。", "隐藏小的时刻表改动以避免延误。"],
-  H1_N17: ["读取数据板并建议路线。", "立刻重写所有时刻表。", "删除让路线变慢的记录。"],
-  H1_N18: ["选择的路线，以及火车是否安全到达。", "行驶时间最短的路线。", "只记住最后一个乘客投诉。"],
-  H1_N19: ["平衡乘客需要、货物安全和电力限制。", "只帮助喊得最大声的乘客。", "只帮助已经延误的火车。"],
-  H1_N20: ["先在一条低风险路线运行，并比较结果。", "让它一次控制所有火车。", "只在没有易碎货物的完美路线上测试。"],
-  H1_N21: ["比较那件货物的预期路线和实际路线。", "只检查司机是否遵守了指令。", "忽略它，因为平均结果是成功的。"],
-  H1_N22: ["选择安全备用轨道，即使它更慢。", "选择最快轨道来节省时间。", "从数据中移除易碎货物。"],
-  H1_N23: ["因为它在选择速度前检查电力和货物。", "因为有风险时它总是选择较慢路线。", "因为智能体自信地猜了。"],
-  H1_N24: ["一个用数据、规则和人工检查选择安全路线的智能体。", "一个可以对任何人说任何话的聊天机器人。", "一个优先选择速度的自动路线按钮。"],
-};
-
-const ZH_CLUES: Record<string, string> = {
-  H1_N01: "先找到两条互相矛盾的证据，再改变任何控制。",
-  H1_N02: "有用输入会影响路线决定。",
-  H1_N03: "先问风险，而不是装饰或捷径。",
-  H1_N04: "有用输入会改变路线决定。",
-  H1_N05: "问一问：系统读取输入后产生了什么？",
-  H1_N06: "正确物品应该匹配任务：保存有用数据。",
-  H1_N07: "安全循环会在目标条件满足时停止。",
-  H1_N08: "检查控制循环的条件。",
-  H1_N09: "好指令会先检查，再行动。",
-  H1_N10: "清楚的提示会减少猜测。",
-  H1_N11: "好的智能体需要目标和限制。",
-  H1_N12: "安全检查让强大的工具受到监督。",
-  H1_N13: "蓝图应该说明智能体如何安全行动。",
-  H1_N14: "行动应该匹配条件。",
-  H1_N15: "反馈是行动之后的证据。",
-  H1_N16: "寻找能阻止不安全行动的护栏。",
-  H1_N17: "安全工具让智能体先检查和建议，再改变城市。",
-  H1_N18: "记忆应该把行动和结果连接起来。",
-  H1_N19: "好目标包含重要限制，而不只听一个很大的信号。",
-  H1_N20: "安全测试会限制规则出错时的影响。",
-  H1_N21: "找到规则和输出之间的不匹配。",
-  H1_N22: "新的行动应该处理失败的易碎货物情况。",
-  H1_N23: "说明让行动更安全的输入和限制。",
-  H1_N24: "护照应该展示你组装的智能体，而不只是分数。",
-};
-
 export function getFallbackScene(nodeKey: string, language: Language, student?: StudentRecord | null): ScenePayload {
   const node = NODE_BY_KEY[nodeKey] ?? NODE_BY_KEY.H1_N01;
-  if (language === "en") return withRetryDialogue(node.fallback, student);
-  return {
-    ...node.fallback,
-    language,
-    dialogue: {
-      ...node.fallback.dialogue,
-      text: ZH_LINES[node.node_key] ?? node.fallback.dialogue.text,
-      read_again_text: ZH_LINES[node.node_key] ?? node.fallback.dialogue.read_again_text,
-    },
-    choices: node.fallback.choices.map((choice, index) => ({
-      ...choice,
-      text: ZH_CHOICES[node.node_key]?.[index] ?? choice.text,
-    })),
-    clue: node.fallback.clue
-      ? {
-          ...node.fallback.clue,
-          text: ZH_CLUES[node.node_key] ?? node.fallback.clue.text,
-        }
-      : node.fallback.clue,
-  };
+  void language;
+  const baseScene = node.fallback;
+  return withAdaptiveSurface(withRetryDialogue(baseScene, student), student);
 }
 
 function withRetryDialogue(scene: ScenePayload, student?: StudentRecord | null): ScenePayload {
@@ -189,5 +93,184 @@ function withRetryDialogue(scene: ScenePayload, student?: StudentRecord | null):
           text: "Look for the hidden risk in the last choice, then match the evidence to the safest next action.",
         }
       : scene.clue,
+  };
+}
+
+function withAdaptiveSurface(scene: ScenePayload, student?: StudentRecord | null): ScenePayload {
+  const difficulty = student ? difficultyForStudent(student) : 2;
+  const retryAttempt =
+    student &&
+    student.current_node_key === scene.node_key &&
+    (student.last_classification === "misconception" || student.last_classification === "wrong")
+      ? student.node_attempts?.[scene.node_key] ?? 1
+      : 0;
+  const fastGuessRetry = isFastGuessRetry(student, retryAttempt);
+  const adaptedChoices = adaptChoices(scene, difficulty, student, retryAttempt);
+  const hintLadder = hintLadderForScene(scene, student);
+  return {
+    ...scene,
+    scene_id: `${scene.scene_id}-d${difficulty}${retryAttempt ? `-r${retryAttempt}` : ""}`,
+    choices: adaptedChoices,
+    hint_ladder: hintLadder,
+    clue: {
+      available: true,
+      text: hintLadder.current_hint,
+    },
+    remediation: retryAttempt
+      ? {
+          active: true,
+          attempt: retryAttempt,
+          scaffold_text: remediationText(retryAttempt, fastGuessRetry),
+          consequence_text: student?.last_world_event,
+        }
+      : undefined,
+    difficulty_level: difficulty,
+    choice_semantic_map: choiceSemanticMapForNode(
+      scene.node_key,
+      adaptedChoices.map((choice) => choice.id),
+    ),
+    world_state: student?.world_state,
+    state_summary: student?.world_state ? worldStateSummary(student.world_state, student.last_world_event) : undefined,
+  };
+}
+
+function adaptChoices(
+  scene: ScenePayload,
+  difficulty: 1 | 2 | 3,
+  student: StudentRecord | null | undefined,
+  retryAttempt: number,
+) {
+  const node = NODE_BY_KEY[scene.node_key] ?? NODE_BY_KEY.H1_N01;
+  const bestChoice = scene.choices.find((choice) => node.evaluation_key.best_choice_ids.includes(choice.id));
+  if (!bestChoice) return scene.choices;
+
+  if (retryAttempt > 0) {
+    const fastGuessRetry = isFastGuessRetry(student, retryAttempt);
+    if (fastGuessRetry) {
+      return rotateChoices(scene.choices, retryAttempt).map((choice) => focusRetryChoice(choice, retryAttempt));
+    }
+    const lastChoice = student?.last_choice
+      ? scene.choices.find((choice) => choice.id === student.last_choice && choice.id !== bestChoice.id)
+      : undefined;
+    const distractor =
+      lastChoice ?? scene.choices.find((choice) => !node.evaluation_key.best_choice_ids.includes(choice.id));
+    return [bestChoice, distractor].filter(Boolean).map((choice) => softenRetryChoice(choice as Choice, retryAttempt));
+  }
+
+  if (difficulty === 1) {
+    const distractor = scene.choices.find((choice) => !node.evaluation_key.best_choice_ids.includes(choice.id));
+    return [bestChoice, distractor].filter(Boolean).map((choice) => simplifyChoice(choice as Choice));
+  }
+
+  if (difficulty === 3 && scene.choices.length < 4) {
+    return [...scene.choices, advancedDistractor(scene)];
+  }
+
+  return scene.choices;
+}
+
+function isFastGuessRetry(student: StudentRecord | null | undefined, retryAttempt: number) {
+  if (!student || retryAttempt <= 0) return false;
+  return Boolean(
+    student.risk_flags?.possible_guessing ||
+      (student.last_response_ms && student.last_response_ms < 1300 && student.last_classification !== "best"),
+  );
+}
+
+function remediationText(retryAttempt: number, fastGuessRetry: boolean) {
+  if (fastGuessRetry) {
+    return "COG-9 locks the quick-tap panel. Pick the evidence that would stop the same warning from happening again.";
+  }
+  if (retryAttempt >= 2) {
+    return "Ada narrows the scene after the clue. Compare the visible warning with the route that prevents it.";
+  }
+  return "Ada rewinds the warning. The choices are still plausible, so use the clue before you pick.";
+}
+
+function rotateChoices(choices: Choice[], retryAttempt: number) {
+  if (choices.length <= 1) return choices;
+  const offset = choices.length === 2 ? 1 : (retryAttempt % (choices.length - 1)) + 1;
+  return [...choices.slice(offset), ...choices.slice(0, offset)];
+}
+
+function simplifyChoice(choice: Choice): Choice {
+  return {
+    ...choice,
+    text: choice.text.replace(/\s+/g, " ").replace(/ before /g, " first, then "),
+  };
+}
+
+function softenRetryChoice(choice: Choice, retryAttempt: number): Choice {
+  const prefix = retryAttempt >= 2 ? "After checking the warning: " : "Use the clue: ";
+  return {
+    ...choice,
+    text: `${prefix}${choice.text.charAt(0).toLowerCase()}${choice.text.slice(1)}`,
+  };
+}
+
+function focusRetryChoice(choice: Choice, retryAttempt: number): Choice {
+  const prefix = retryAttempt >= 2 ? "Slow check: " : "Evidence check: ";
+  return {
+    ...choice,
+    text: `${prefix}${choice.text.charAt(0).toLowerCase()}${choice.text.slice(1)}`,
+  };
+}
+
+function advancedDistractor(scene: ScenePayload): Choice {
+  const choiceType = scene.choices[0]?.choice_type ?? "action";
+  const nodeSpecific = ADVANCED_DISTRACTORS_BY_NODE[scene.node_key];
+  if (nodeSpecific) return { id: "D", text: nodeSpecific, choice_type: choiceType };
+  const room = scene.room_slug;
+  const text =
+    room === "future_reactorcore"
+      ? "Trust the dashboard if it looks stable for one quick test."
+      : room === "future_market"
+        ? "Use the cleanest-looking record and check the risky cargo later."
+        : room === "future_agent_lab"
+          ? "Let the agent act automatically, but only while the dashboard is green."
+          : "Take the quickest safe-looking action, then inspect the evidence after.";
+  return { id: "D", text, choice_type: choiceType };
+}
+
+const ADVANCED_DISTRACTORS_BY_NODE: Record<string, string> = {
+  H1_N01: "Trust the two newest-looking displays and check the old clock after dispatch.",
+  H1_N02: "Use the platform sign, passenger queue, and mayor's delay alarm as the first inputs.",
+  H1_N03: "Ask whether the warning horn is loud enough to cover a risky dispatch.",
+  H1_N04: "Use the cracked-glass scan first and ask loaders about frozen medicine later.",
+  H1_N05: "Treat the warning note as the output because it appears after the cargo facts.",
+  H1_N06: "Use the Prompt Card to rewrite the scans into one cleaner-looking note.",
+  H1_N07: "Stop charging when the sparks look smaller, then check the battery afterwards.",
+  H1_N08: "Inspect the timetable first because the loop happened while trains were moving.",
+  H1_N09: "Choose the track first, then have the worker check cargo before the bell rings.",
+  H1_N10: "Send the cargo train soon if the clerk thinks Track B is probably clear.",
+  H1_N11: "Let speed win unless cargo warnings are already flashing red.",
+  H1_N12: "Allow small automatic timetable changes if the agent writes them in the log.",
+  H1_N13: "Build goal, inputs, rules, feedback, and live timetable access before safety review.",
+  H1_N14: "Send fragile cargo to the fast track if the delay board is already red.",
+  H1_N15: "Check whether the dashboard predicted success before looking at the cargo door.",
+  H1_N16: "Count low-risk automatic changes as safe because they are easy to undo.",
+  H1_N17: "Let the agent change only quiet timetable rows without asking anyone.",
+  H1_N18: "Remember the route that looked fastest before the complaint arrived.",
+  H1_N19: "Balance passengers and power now; add quiet cargo alarms after the crowd calms down.",
+  H1_N20: "Run the first test on three routes so mistakes are easier to spot quickly.",
+  H1_N21: "Compare only successful routes first so the broken glass case does not distort the test.",
+  H1_N22: "Use the backup track only when both fragile cargo and passenger complaints are high.",
+  H1_N23: "Because the rule lets COG-9 choose speed whenever the dashboard sounds confident.",
+  H1_N24: "A routing assistant that can change quiet trains automatically and report later.",
+};
+
+function hintLadderForScene(scene: ScenePayload, student?: StudentRecord | null) {
+  const count = Math.min(3, Math.max(1, (student?.hint_counts?.[scene.node_key] ?? 0) + 1));
+  const baseHint = scene.clue?.text || "Look for the clue that changes the system.";
+  const hints = [
+    baseHint,
+    "Name the clue that would change what the character does next.",
+    "Ask what could break if that clue is ignored.",
+  ];
+  return {
+    step: count,
+    hints,
+    current_hint: hints[count - 1],
+    speaker_name: "COG-9",
   };
 }

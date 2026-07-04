@@ -88,7 +88,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "COG-9 appears for the first time, introduces himself as the station helper robot, and shows that the main clock, platform sign, and dispatch log disagree. The student explores evidence before touching any controls.",
     canonical_prompt_intent: "Student chooses to compare station evidence before acting. Do not name any backend system in this opening beat.",
     allowed_choice_types: ["action"],
-    scripted: true,
+    scripted: false,
     sort_order: 1,
     fallback: scene(
       "H1_N01",
@@ -125,7 +125,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Ada turns the evidence into the first AI idea: COG-9 needs useful inputs before suggesting any safe train movement.",
     canonical_prompt_intent: "Student chooses useful input data for COG-9's first station check.",
     allowed_choice_types: ["evidence"],
-    scripted: true,
+    scripted: false,
     sort_order: 2,
     fallback: scene(
       "H1_N02",
@@ -133,11 +133,11 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "thinking",
       "Professor Ada",
-      "Ada kneels beside the route board. COG-9 can help, but only if we feed him the right station inputs. Which set would actually explain the missing minute?",
+      "Ada kneels beside the route board. COG-9 opens three input slots, but Nix keeps dragging extra cards toward them. Which set belongs in the first time check?",
       "Inputs are the evidence a system reads before it chooses an action.",
       choices([
-        ["A", "Platform sign time, dispatch log time, and passenger queue size.", "evidence"],
-        ["B", "Main clock time, platform sign time, and cargo manifest.", "evidence"],
+        ["A", "Platform sign time, dispatch log time, and the angry passenger queue.", "evidence"],
+        ["B", "Main clock time, platform sign time, and the urgent cargo label.", "evidence"],
         ["C", "Main clock time, platform sign time, and dispatch log time.", "evidence"],
       ]),
       "Useful inputs are the clues that could explain the one-minute mismatch.",
@@ -162,7 +162,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Nix introduces themself as a signal glitch from the station screens, then tempts the student to dispatch trains before asking what could go wrong.",
     canonical_prompt_intent: "Student asks a useful safety question before continuing. Introduce Nix before any temptation or challenge.",
     allowed_choice_types: ["ask_question"],
-    scripted: true,
+    scripted: false,
     sort_order: 3,
     fallback: scene(
       "H1_N03",
@@ -199,7 +199,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Ada sends the student to the market to gather clean cargo data.",
     canonical_prompt_intent: "Student distinguishes clean evidence from noisy observations.",
     allowed_choice_types: ["evidence"],
-    scripted: true,
+    scripted: false,
     sort_order: 4,
     fallback: scene(
       "H1_N04",
@@ -207,12 +207,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "thinking",
       "Professor Ada",
-      "At the market platform, three urgent crates roll in: frozen medicine, glass panels, and heavy repair parts. Which record should COG-9 read before choosing a route?",
+      "At the market platform, three urgent crates roll in: frozen medicine, glass panels, and a heavy generator. The route board can read one record first. Which record changes the safest track?",
       "The route rule needs cargo evidence because different cargo can need different tracks.",
       choices([
-        ["A", "The delivery priority list showing which customer is waiting.", "evidence"],
-        ["B", "The cargo manifest showing frozen, fragile, or heavy crates.", "evidence"],
-        ["C", "The scanner photo showing crate shape and label colour.", "evidence"],
+        ["A", "The delivery priority list showing who is waiting longest.", "evidence"],
+        ["B", "The cargo manifest showing frozen, fragile, or heavy loads.", "evidence"],
+        ["C", "The scanner photo showing one cracked glass corner.", "evidence"],
       ]),
       "Choose evidence that can change the route decision.",
     ),
@@ -236,7 +236,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "COG-9 separates the cargo input from the route output.",
     canonical_prompt_intent: "Student identifies output as the system decision.",
     allowed_choice_types: ["why"],
-    scripted: true,
+    scripted: false,
     sort_order: 5,
     fallback: scene(
       "H1_N05",
@@ -244,11 +244,11 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "cog9",
       "uncertain",
       "COG-9",
-      "COG-9's screen splits into three boxes: cargo facts, warning notes, and route command. Which box is the output he creates?",
+      "COG-9 reads the manifest and displays three boxes: cargo facts, a warning note, and a route command. Which box is the output he creates?",
       "The output is the decision COG-9 produces after reading evidence.",
       choices([
         ["A", "The cargo facts COG-9 reads before deciding.", "why"],
-        ["B", "The warning note COG-9 shows beside the manifest.", "why"],
+        ["B", "The warning note COG-9 shows while deciding.", "why"],
         ["C", "The route command COG-9 recommends for the train.", "why"],
       ]),
       "Look for the thing the system decides, not the evidence it reads.",
@@ -274,7 +274,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     canonical_prompt_intent: "Student uses a backpack item with a reason.",
     allowed_choice_types: ["backpack"],
     required_backpack_item: "data_slate",
-    scripted: true,
+    scripted: false,
     sort_order: 6,
     fallback: scene(
       "H1_N06",
@@ -282,10 +282,10 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "encouraging",
       "Professor Ada",
-      "The loaders hand you clean cargo scans and a battery reading. Which backpack item should carry those inputs back to COG-9 without mixing them up?",
+      "The loaders hand you cargo scans and a battery reading while Nix tries to stick glitter labels on them. Which backpack item carries the evidence back without mixing it up?",
       "The Data Slate stores clean input evidence for the route rule.",
       choices([
-        ["A", "Use the Safety Seal to lock the record once Ada has checked it.", "backpack"],
+        ["A", "Use the Safety Seal to lock the record after Ada checks every scan.", "backpack"],
         ["B", "Use the Data Slate to store the cargo scans and battery reading.", "backpack"],
         ["C", "Use the Prompt Card to write a clearer label for each crate.", "backpack"],
       ]),
@@ -312,7 +312,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "The reactor keeps draining power because a loop has no safe stop.",
     canonical_prompt_intent: "Student chooses a stopping condition for a loop.",
     allowed_choice_types: ["action"],
-    scripted: true,
+    scripted: false,
     sort_order: 7,
     fallback: scene(
       "H1_N07",
@@ -320,12 +320,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "cog9",
       "warning",
       "COG-9",
-      "The reactor charger is stuck chanting: send power, send power, send power. The station battery is climbing, but the command keeps looping. What condition should stop it?",
+      "The reactor charger chants: send power, send power, send power. Sparks jump every time the battery needle rises. What condition should stop the loop?",
       "A loop needs a condition that tells it when the job is done.",
       choices([
         ["A", "Stop when the station battery is full enough.", "action"],
-        ["B", "Keep charging while anyone is worried about delays.", "action"],
-        ["C", "Stop after five repeats even if the battery is still low.", "action"],
+        ["B", "Keep charging while the delay board still looks nervous.", "action"],
+        ["C", "Stop after five bursts, then let COG-9 check whether that was enough.", "action"],
       ]),
       "A safe loop stops when the goal condition is met.",
     ),
@@ -350,7 +350,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     canonical_prompt_intent: "Student picks the debug action that checks the condition.",
     allowed_choice_types: ["backpack"],
     required_backpack_item: "debug_wrench",
-    scripted: true,
+    scripted: false,
     sort_order: 8,
     fallback: scene(
       "H1_N08",
@@ -358,12 +358,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "thinking",
       "Professor Ada",
-      "The Debug Wrench clicks open the charger rule. Which part should it inspect before COG-9 sends more power?",
+      "The Debug Wrench clicks open the charger rule. Three wires glow at once. Which wire should it inspect before COG-9 sends more power?",
       "Debugging means inspecting the rule that caused the behaviour you can see.",
       choices([
         ["A", "Whether the charger checks the battery before repeating.", "backpack"],
-        ["B", "Whether the charger can repeat the command faster.", "backpack"],
-        ["C", "Whether the train timetable changed while charging.", "backpack"],
+        ["B", "Whether the command queue duplicated the same power request.", "backpack"],
+        ["C", "Whether the train timetable changed while the charger was running.", "backpack"],
       ]),
       "Inspect the condition that controls the loop.",
       { required_item_slug: "debug_wrench", allowed_item_slugs: ["debug_wrench"] },
@@ -388,7 +388,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "The time signal jumps to 1888, where station rules must be simpler and ordered.",
     canonical_prompt_intent: "Student sequences route instructions in plain steps.",
     allowed_choice_types: ["autocomplete_finish"],
-    scripted: true,
+    scripted: false,
     sort_order: 9,
     fallback: scene(
       "H1_N09",
@@ -396,12 +396,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "encouraging",
       "Professor Ada",
-      "1888 station workers need simple steps. Finish the route instruction: First check power, then...",
+      "A nervous 1888 worker is holding the route lever. The instruction starts: First check power, then...",
       "A sequence puts steps in the order someone can follow.",
       choices([
         ["A", "check cargo type, then choose the safe track.", "autocomplete_finish"],
-        ["B", "choose any track, then check the inputs later.", "autocomplete_finish"],
-        ["C", "choose the shortest track after counting passengers.", "autocomplete_finish"],
+        ["B", "choose the open track, then write down what cargo was on it.", "autocomplete_finish"],
+        ["C", "count the waiting passengers, then choose the shortest track.", "autocomplete_finish"],
       ]),
       "Good instructions put checks before action.",
     ),
@@ -426,7 +426,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     canonical_prompt_intent: "Student chooses a clear instruction/prompt.",
     allowed_choice_types: ["autocomplete_finish"],
     required_backpack_item: "prompt_card",
-    scripted: true,
+    scripted: false,
     sort_order: 10,
     fallback: scene(
       "H1_N10",
@@ -434,12 +434,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "cog9",
       "uncertain",
       "COG-9",
-      "The telegraph says: 'Send train soon.' Use the Prompt Card. Which version is clearer?",
+      "The telegraph says: 'Send train soon.' Two clerks reach for different switches. Use the Prompt Card. Which version removes the guess?",
       "A clear instruction says what to do and when to do it.",
       choices([
         ["A", "If power is safe, send the cargo train to Track B before noon.", "autocomplete_finish"],
-        ["B", "Send the cargo train to Track B when the platform looks ready.", "autocomplete_finish"],
-        ["C", "Send the train before noon if someone confirms the route.", "autocomplete_finish"],
+        ["B", "Send the cargo train to Track B when the platform master waves.", "autocomplete_finish"],
+        ["C", "Send the next train before noon after someone confirms the route.", "autocomplete_finish"],
       ]),
       "Clear prompts reduce guessing.",
       { required_item_slug: "prompt_card", allowed_item_slugs: ["prompt_card"] },
@@ -464,7 +464,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     fixed_story_beat: "Back in TimeCity, Nix introduces Ada's Station Helper Agent plan as a helper that reads inputs and suggests routes, then argues it should optimise only for speed.",
     canonical_prompt_intent: "Student recognises that speed is not the only goal. Introduce Station Helper Agent before asking about it.",
     allowed_choice_types: ["why"],
-    scripted: true,
+    scripted: false,
     sort_order: 11,
     fallback: scene(
       "H1_N11",
@@ -502,7 +502,7 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
     canonical_prompt_intent: "Student chooses a human review safeguard.",
     allowed_choice_types: ["backpack"],
     required_backpack_item: "safety_seal",
-    scripted: true,
+    scripted: false,
     sort_order: 12,
     fallback: scene(
       "H1_N12",
@@ -510,12 +510,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "thinking",
       "Professor Ada",
-      "The mayor wants the agent connected to the live timetable. Ada slides the Safety Seal onto the table. Which safeguard should go in before any real timetable changes?",
+      "The mayor wants the agent connected to the live timetable before the crowd gets louder. Ada slides the Safety Seal onto the table. Which safeguard goes in first?",
       "A safeguard limits what an agent can do without human review.",
       choices([
         ["A", "Ask a human before changing the main timetable.", "backpack"],
-        ["B", "Let the agent quietly change small delays without telling anyone.", "backpack"],
-        ["C", "Let the agent remove constraints when the station is busy.", "backpack"],
+        ["B", "Let the agent make small delay fixes, then show Ada the log later.", "backpack"],
+        ["C", "Let the agent skip human review only when the station is crowded.", "backpack"],
       ]),
       "Safety checks keep powerful tools under review.",
       { required_item_slug: "safety_seal", allowed_item_slugs: ["safety_seal"] },
@@ -549,10 +549,10 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "cog9",
       "excited",
       "COG-9",
-      "In the Agent Lab, COG-9 projects a blueprint over the route board. Nix keeps trying to scribble SPEED in every box. Which build would survive a real station test?",
+      "In the Agent Lab, COG-9 projects a blueprint over the route board. Nix keeps sliding a big SPEED gear into every slot. Which build would survive a real station test?",
       "An agent needs a goal, inputs, tools, rules, safeguards, and feedback.",
       choices([
-        ["A", "Goal, inputs, speed target, and automatic timetable access.", "backpack"],
+        ["A", "Goal, inputs, rules, speed target, and live timetable access.", "backpack"],
         ["B", "Goal, inputs, tools, rules, safety check, and feedback.", "backpack"],
         ["C", "Goal, output, speed target, and dashboard badge.", "backpack"],
       ]),
@@ -624,10 +624,10 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "cog9",
       "uncertain",
       "COG-9",
-      "COG-9 runs one tiny test train through the lab simulator. After I recommend a route, what feedback should I check?",
+      "COG-9 runs one tiny test train through the lab simulator. It arrives with cheering passengers but a rattling cargo door. What feedback should he check?",
       "Feedback tells the agent whether its action helped.",
       choices([
-        ["A", "Whether passenger complaints dropped fastest.", "why"],
+        ["A", "Whether passenger complaints dropped fastest after the route.", "why"],
         ["B", "Whether the train arrived safely, on time, with cargo intact.", "why"],
         ["C", "Whether the dashboard confidence score stayed high.", "why"],
       ]),
@@ -661,11 +661,11 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "encouraging",
       "Professor Ada",
-      "Your first blueprint draft hums like it wants to wake up. Which part proves the agent cannot change TimeCity by itself?",
+      "Your first blueprint hums like it wants to wake up. Nix points at the logbook: 'It records everything, so it is safe enough.' Which part actually stops the agent changing TimeCity by itself?",
       "A safety check is a rule or permission that stops the agent acting too freely.",
       choices([
-        ["A", "It logs every automatic change after the timetable updates.", "why"],
-        ["B", "It uses only low-risk routes during the first hour.", "why"],
+        ["A", "It logs every timetable change after the agent makes it.", "why"],
+        ["B", "It starts with low-risk routes but can still change them automatically.", "why"],
         ["C", "It asks a human before changing the main timetable.", "why"],
       ]),
       "Look for the guardrail that prevents unsafe action.",
@@ -698,12 +698,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "cog9",
       "uncertain",
       "COG-9",
-      "The permissions panel flashes red. Which tools may the Station Helper Agent use without asking a human first?",
+      "The permissions panel flashes red. COG-9 wants to help, but every unlocked tool is tempting. Which tools may he use without asking a human first?",
       "Tool permissions say what an agent can do on its own.",
       choices([
         ["A", "Read the Data Slate and suggest a route.", "backpack"],
-        ["B", "Rewrite low-risk timetable rows during quiet hours.", "backpack"],
-        ["C", "Hide cargo records that make the route slower.", "backpack"],
+        ["B", "Rewrite low-risk timetable rows only when confidence is high.", "backpack"],
+        ["C", "Skip cargo records that loaders have already checked once.", "backpack"],
       ]),
       "Safe tools let the agent inspect and recommend before it changes the city.",
       { required_item_slug: "data_slate", allowed_item_slugs: ["data_slate", "agent_blueprint"] },
@@ -736,12 +736,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "ada",
       "thinking",
       "Professor Ada",
-      "The test train returns from the simulator. The agent can remember one thing for next time. What memory is useful?",
+      "The test train returns with a route trace, a travel time, and one passenger complaint. The agent can remember one record for the next decision. Which memory is useful?",
       "Useful memory helps the agent improve the next decision.",
       choices([
-        ["A", "The chosen route and whether the train arrived safely.", "evidence"],
-        ["B", "The route with the shortest travel time.", "evidence"],
-        ["C", "Only the last passenger complaint.", "evidence"],
+        ["A", "The chosen route plus whether cargo arrived safely and on time.", "evidence"],
+        ["B", "The shortest route plus the number of passenger complaints.", "evidence"],
+        ["C", "Only the latest passenger complaint because it is newest.", "evidence"],
       ]),
       "Memory should connect an action to its result.",
     ),
@@ -773,12 +773,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "nix",
       "mischievous",
       "Nix",
-      "Passengers are crowding the mayor's steps. What if the agent always helps whoever shouts loudest? Very efficient, very dramatic.",
+      "Passengers are crowding the mayor's steps. Nix points to the loudest platform and grins: help them first and everyone sees progress. What should the agent balance?",
       "A helpful agent should not ignore quieter constraints.",
       choices([
         ["A", "Balance passenger need, cargo safety, and power limits.", "why"],
-        ["B", "Only help the loudest passenger.", "why"],
-        ["C", "Only help trains that are already delayed.", "why"],
+        ["B", "Serve the loudest platform first so the crowd calms down.", "why"],
+        ["C", "Serve delayed trains first unless the cargo warning is red.", "why"],
       ]),
       "A good goal includes the important constraints, not just one loud signal.",
     ),
@@ -847,12 +847,12 @@ export const EPISODE_ONE_NODES: StoryNode[] = [
       "cog9",
       "uncertain",
       "COG-9",
-      "The limited test nearly works. One fragile glass shipment still takes the fast track and rattles hard through the turn. What should we inspect?",
+      "The limited test nearly works. One fragile glass shipment still takes the fast track and rattles hard through the turn. COG-9 looks horrified. What should we inspect?",
       "Debugging means comparing what should happen with what actually happened.",
       choices([
         ["A", "Compare the expected route with the actual route for that cargo.", "evidence"],
         ["B", "Check only whether the driver followed instructions.", "evidence"],
-        ["C", "Ignore it because the average result was successful.", "evidence"],
+        ["C", "Treat it as rare unless the same cargo fails twice.", "evidence"],
       ]),
       "Find the mismatch between the rule and the output.",
     ),
@@ -985,3 +985,19 @@ export const NODE_BY_KEY = Object.fromEntries(EPISODE_ONE_NODES.map((node) => [n
 >;
 
 export const FIRST_NODE_KEY = "H1_N01";
+
+export function choiceSemanticForNode(nodeKey: string, choiceId: string) {
+  const node = NODE_BY_KEY[nodeKey] ?? NODE_BY_KEY.H1_N01;
+  if (node.evaluation_key.best_choice_ids.includes(choiceId)) return `best:${node.curriculum_concept}`;
+  if (node.evaluation_key.partial_choice_ids.includes(choiceId)) {
+    return `partial:${node.evaluation_key.misconception_map[choiceId] ?? node.curriculum_concept}`;
+  }
+  if (node.evaluation_key.misconception_map[choiceId]) {
+    return `misconception:${node.evaluation_key.misconception_map[choiceId]}`;
+  }
+  return "misconception:overconfident_shortcut";
+}
+
+export function choiceSemanticMapForNode(nodeKey: string, choiceIds: string[]) {
+  return Object.fromEntries(choiceIds.map((choiceId) => [choiceId, choiceSemanticForNode(nodeKey, choiceId)]));
+}

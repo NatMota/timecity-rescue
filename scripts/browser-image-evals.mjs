@@ -61,7 +61,7 @@ const judges = [
     id: "ux_accessibility",
     title: "UX Graphics Accessibility Judge",
     prompt:
-      "You are a senior UX/accessibility reviewer. Evaluate the screenshots as visual evidence: graphics quality, layout, contrast, typography, button affordance, focus/readability, image composition, language switching, and likely keyboard/screen-reader accessibility from the accessibility tree.",
+      "You are a senior UX/accessibility reviewer. Evaluate the screenshots as visual evidence: graphics quality, layout, contrast, typography, button affordance, focus/readability, image composition, English-only copy, and likely keyboard/screen-reader accessibility from the accessibility tree.",
   },
   {
     id: "child_safety",
@@ -175,43 +175,55 @@ async function driveGame() {
   await clickText("Signal Scout");
   await wait(900);
   await clickText("Continue");
-  await waitForVisibleText(["Professor Ada", "Begin Adventure"], 18000);
-  await capture("03-professor-intro", screenshots, snapshots);
+  await waitForVisibleText(["Professor Ada", "Welcome to TimeCity", "Continue"], 18000);
+  await capture("03-ada-welcome", screenshots, snapshots);
+
+  await clickText("Continue");
+  await waitForVisibleText(["COG-9", "Platform 2", "Continue"], 12000);
+  await capture("04-cog9-intro", screenshots, snapshots);
+
+  await clickText("Continue");
+  await waitForVisibleText(["Nix", "Watch this", "Continue"], 12000);
+  await capture("05-nix-intro", screenshots, snapshots);
+
+  await clickText("Continue");
+  await waitForVisibleText(["Professor Ada", "A train just left", "Begin Adventure"], 12000);
+  await capture("06-incident", screenshots, snapshots);
 
   let state = await latestSnapshot();
   if (hasButton(state, "Begin Adventure")) {
     await clickText("Begin Adventure");
     await waitForVisibleText(["COG-9", "station helper robot"], 15000);
   }
-  await capture("04-cog9-intro", screenshots, snapshots);
+  await capture("07-cog9-mission-intro", screenshots, snapshots);
 
   state = await latestSnapshot();
   if (hasButton(state, "Continue")) {
     await clickText("Continue");
   }
   await waitForVisibleText(["Station clue check", "Try the station challenge"], 15000);
-  await capture("05-problem-exploration", screenshots, snapshots);
+  await capture("08-problem-exploration", screenshots, snapshots);
 
   state = await latestSnapshot();
-  if (hasButton(state, "Who is COG-9?")) {
-    await clickText("Who is COG-9?");
+  if (hasButton(state, "Check the platform sign")) {
+    await clickText("Check the platform sign");
     await wait(700);
   }
-  await capture("06-character-question", screenshots, snapshots);
+  await capture("09-character-question", screenshots, snapshots);
 
   state = await latestSnapshot();
   if (hasButton(state, "Try the station challenge")) {
     await clickText("Try the station challenge");
   }
   await waitForVisibleText(["Ask for Clue", "Compare the sign"], 15000);
-  await capture("07-first-choice", screenshots, snapshots);
+  await capture("10-first-choice", screenshots, snapshots);
 
   state = await latestSnapshot();
   if (hasButton(state, "Ask for Clue")) {
     await clickText("Ask for Clue");
     await wait(700);
   }
-  await capture("08-clue-support", screenshots, snapshots);
+  await capture("11-clue-support", screenshots, snapshots);
 
   return { screenshots, snapshots };
 }

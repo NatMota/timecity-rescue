@@ -6,15 +6,15 @@ import { useStudentMissionRuntime } from "./useStudentMissionRuntime";
 import type { CharacterPlaybackPhase } from "@/components/shared/SceneCharacterLayer";
 import { ROOM_SEQUENCE, ROOM_TITLES } from "@/lib/game/fixedGraph";
 import { getRoomExploration, isRoomIntroNode } from "@/lib/game/roomExploration";
-import type { Language } from "@/lib/game/types";
+import type { CharacterSlug, CharacterState } from "@/lib/game/types";
 
 export const avatarChoices = [
-  { id: "blue", image: "/assets/avatars/avatar-1.png", en: "Blue Cadet", zh: "蓝色学员" },
-  { id: "teal", image: "/assets/avatars/avatar-2.png", en: "Signal Scout", zh: "信号侦察员" },
-  { id: "purple", image: "/assets/avatars/avatar-3.png", en: "Portal Pilot", zh: "传送门飞行员" },
-  { id: "amber", image: "/assets/avatars/avatar-4.png", en: "Gear Runner", zh: "齿轮奔跑者" },
-  { id: "rose", image: "/assets/avatars/avatar-5.png", en: "Spark Solver", zh: "火花解谜者" },
-  { id: "green", image: "/assets/avatars/avatar-6.png", en: "Code Keeper", zh: "代码守护者" },
+  { id: "blue", image: "/assets/avatars/avatar-1.png", label: "Blue Cadet" },
+  { id: "teal", image: "/assets/avatars/avatar-2.png", label: "Signal Scout" },
+  { id: "purple", image: "/assets/avatars/avatar-3.png", label: "Portal Pilot" },
+  { id: "amber", image: "/assets/avatars/avatar-4.png", label: "Gear Runner" },
+  { id: "rose", image: "/assets/avatars/avatar-5.png", label: "Spark Solver" },
+  { id: "green", image: "/assets/avatars/avatar-6.png", label: "Code Keeper" },
 ];
 
 type BackpackCopy = {
@@ -65,8 +65,7 @@ type StudentCopy = {
   exploration: ExplorationCopy;
 };
 
-const uiText = {
-  en: {
+const uiText: StudentCopy = {
     mission: "Join mission",
     splashTitle: "TimeCity Rescue",
     splashLead: "A story mission about AI, choices and debugging the city clock.",
@@ -115,89 +114,46 @@ const uiText = {
         { slug: "safety_seal", item: "Safety Seal", description: "Adds a human-check guardrail." },
       ],
     },
-  },
-  zh: {
-    mission: "加入任务",
-    splashTitle: "TimeCity Rescue",
-    splashLead: "一个关于 AI、选择和修复城市时钟的故事任务。",
-    play: "开始",
-    setupTitle: "设置你的任务",
-    setupLead: "进入 TimeCity 之前，先选择头像。",
-    codename: "代号",
-    avatar: "选择你的头像",
-    avatarLead: "",
-    continue: "继续",
-    back: "返回",
-    introTitle: "第一集：消失的一分钟",
-    introLead: "Ada 发现了损坏的时间信号。你的选择会教 COG-9 如何安全地跟随目标。",
-    introSpeaker: "Ada 教授",
-    begin: "开始冒险",
-    loading: "加载中",
-    episode: "第一集 - 消失的一分钟",
-    print: "生成智能体建造者护照",
-    exit: "退出",
-    restart: "返回",
-    map: "地图",
-    askCharacter: "询问角色",
-    footer: "孩子不会与 AI 自由聊天。AI 只会在教师控制的沙盒中调整内容。",
-    clueFallback: "如果你想要更安全的下一步，可以使用帮助按钮。",
-    readAgain: "再读一遍",
-    clue: "请求线索",
-    defaultClue: "检查会改变系统的线索。",
-    exploration: {
-      questions: {
-        problem: "哪里不对？",
-        cog9: "你是谁？",
-        cog9Answer: "屏幕上的 COG-9 是车站助手机器人。它可以读取信号并建议火车移动，但必须先弄清楚证据。",
-        inspect: "我应该先检查什么？",
-        avoid: "为什么现在不能直接修？",
-        avoidAnswer: "因为我们还不知道哪里坏了。如果先改控制台，COG-9 可能会更快地重复同一个错误。",
-      },
-    },
-    backpack: {
-      button: "背包",
-      items: [
-        { slug: "logic_lens", item: "逻辑镜片", description: "显示隐藏规则。" },
-        { slug: "data_slate", item: "数据板", description: "保存干净的输入和输出。" },
-        { slug: "debug_wrench", item: "调试扳手", description: "检查循环和错误规则。" },
-        { slug: "prompt_card", item: "提示卡", description: "让指令更清楚。" },
-        { slug: "agent_blueprint", item: "智能体蓝图", description: "组装最终的助手智能体。" },
-        { slug: "safety_seal", item: "安全印章", description: "加入人工检查护栏。" },
-      ],
-    },
-  },
-} satisfies Record<Language, StudentCopy>;
+};
 
 export type StartStep = "splash" | "menu" | "intro";
 
 const START_FADE_MS = 680;
 
+type IntroBeat = {
+  speaker: string;
+  character: CharacterSlug;
+  state: CharacterState;
+  text: string;
+  incident?: boolean;
+};
+
 export function useStudentGameDirector({ initialSessionCode }: { initialSessionCode: string }) {
-  const [language, setLanguage] = useState<Language>("en");
   const [startStep, setStartStep] = useState<StartStep>("splash");
   const [startTransition, setStartTransition] = useState<"idle" | "fading">("idle");
   const [avatarColor, setAvatarColor] = useState(avatarChoices[0].id);
+  const [introBeatIndex, setIntroBeatIndex] = useState(0);
   const transitionTimerRef = useRef<number | null>(null);
   const sessionCode = useMemo(() => initialSessionCode.toUpperCase(), [initialSessionCode]);
-  const copy = uiText[language];
+  const copy = uiText;
   const selectedAvatar = avatarChoices.find((avatar) => avatar.id === avatarColor) ?? avatarChoices[0];
-  const selectedAvatarLabel = selectedAvatar[language];
+  const selectedAvatarLabel = selectedAvatar.label;
 
   const runtime = useStudentMissionRuntime({
     sessionCode,
     displayName: selectedAvatarLabel,
     avatarColor,
     language: "en",
-    setLanguage,
     onExit: () => setStartStep("splash"),
     text: { defaultClue: copy.defaultClue },
   });
 
-  const introDialogue =
-    language === "zh"
-      ? `欢迎来到 TimeCity 火车站。我是 Ada 教授。你的 ${selectedAvatarLabel} 头像已准备好。两个车站时钟对不上，一列火车刚刚提前离站。我们先找线索，再碰控制台。`
-      : `Welcome to TimeCity Station. I'm Professor Ada. Your ${selectedAvatarLabel} avatar is ready. Two station clocks disagree, and a train has just left early. We inspect first, then touch the controls.`;
-  const introPlayback = useScenePlayback(startStep === "intro" ? `intro-${language}-${avatarColor}` : null);
+  const introBeats = useMemo(
+    () => buildIntroBeats(selectedAvatarLabel),
+    [selectedAvatarLabel],
+  );
+  const introBeat = introBeats[Math.min(introBeatIndex, introBeats.length - 1)];
+  const introPlayback = useScenePlayback(startStep === "intro" ? `intro-${avatarColor}-${introBeatIndex}` : null);
 
   useEffect(() => {
     return () => {
@@ -209,10 +165,19 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
     setStartTransition("fading");
     if (transitionTimerRef.current) window.clearTimeout(transitionTimerRef.current);
     transitionTimerRef.current = window.setTimeout(() => {
+      if (nextStep === "intro") setIntroBeatIndex(0);
       setStartStep(nextStep);
       setStartTransition("idle");
     }, START_FADE_MS);
   }, []);
+
+  const continueIntro = useCallback(() => {
+    if (introBeatIndex < introBeats.length - 1) {
+      setIntroBeatIndex((index) => index + 1);
+      return;
+    }
+    runtime.join();
+  }, [introBeatIndex, introBeats.length, runtime]);
 
   const missionPhase = runtime.playback.phase;
   const roomExploration = runtime.scene ? getRoomExploration(runtime.scene.node_key) : null;
@@ -226,6 +191,7 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
           questions: roomExploration.questions,
           answer: runtime.explorationAnswer || roomExploration.starter,
           readyLabel: roomExploration.readyLabel,
+          readyDisabled: runtime.explorationQuestionCount < (roomExploration.minQuestionsBeforeChallenge ?? 0),
           onAsk: runtime.askExplorationQuestion,
           onReady: () => runtime.playback.advanceToChoices({ keepSpeaker: true }),
         }
@@ -233,8 +199,8 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
   const completionSurface =
     runtime.student?.memento
       ? {
-          title: language === "zh" ? "任务完成" : "Mission Complete",
-          body: language === "zh" ? "你已经准备好生成 Agent Builder Passport。" : "You are ready to generate your Agent Builder Passport.",
+          title: "Mission Complete",
+          body: "You are ready to generate your Agent Builder Passport.",
           badgeLabel: "Agent Badge",
           actionLabel: copy.print,
           onPrint: runtime.printMemento,
@@ -308,7 +274,6 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
   return {
     screen: runtime.student && runtime.scene ? "mission" : runtime.student ? "loading" : "start",
     sessionCode,
-    language,
     copy,
     start: {
       step: startStep,
@@ -322,21 +287,28 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
       play: () => fadeToStep("menu"),
       continueToIntro: () => fadeToStep("intro"),
       backToSplash: () => setStartStep("splash"),
-      backToMenu: () => setStartStep("menu"),
+      backToMenu: () => {
+        setIntroBeatIndex(0);
+        setStartStep("menu");
+      },
     },
     setup: {
       avatarChoices,
       avatarColor,
       setAvatarColor,
-      changeLanguage: runtime.changeLanguage,
     },
     intro: {
-      dialogue: introDialogue,
+      dialogue: introBeat.text,
+      speaker: introBeat.speaker,
+      character: introBeat.character,
+      characterState: introBeat.state,
+      showIncident: Boolean(introBeat.incident),
+      isLastBeat: introBeatIndex === introBeats.length - 1,
       phase: introPlayback.phase,
       characterPhase: characterPhaseFor(introPlayback.phase),
       showDialogue: introPlayback.phase === "speaker-entering" || introPlayback.phase === "speaking",
       showActions: false,
-      continue: runtime.join,
+      continue: continueIntro,
       begin: runtime.join,
     },
     mission: {
@@ -353,7 +325,6 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
       mapSurface,
       navigation,
       busy: runtime.busy,
-      changeLanguage: runtime.changeLanguage,
       continueDialogue: () => {
         if (shouldExploreRoom) {
           runtime.playback.advanceToExploration();
@@ -363,6 +334,36 @@ export function useStudentGameDirector({ initialSessionCode }: { initialSessionC
       },
     },
   };
+}
+
+function buildIntroBeats(selectedAvatarLabel: string): IntroBeat[] {
+  return [
+    {
+      speaker: "Professor Ada",
+      character: "ada",
+      state: "neutral",
+      text: `Welcome to TimeCity. Trains cross the sky, markets ride the rails, and every clock must agree. Your ${selectedAvatarLabel} avatar is ready.`,
+    },
+    {
+      speaker: "COG-9",
+      character: "cog9",
+      state: "uncertain",
+      text: "Hello. I am COG-9. Platform 2 has 18 passengers, 3 parcels, and one nervous robot. I will count clues with you.",
+    },
+    {
+      speaker: "Nix",
+      character: "nix",
+      state: "mischievous",
+      text: "Numbers are slow. I am Nix. I can make signs blink faster. Watch this.",
+    },
+    {
+      speaker: "Professor Ada",
+      character: "ada",
+      state: "warning",
+      text: "A train just left one minute early. The station clocks split. TimeCity needs a systems detective. That is you.",
+      incident: true,
+    },
+  ];
 }
 
 function characterPhaseFor(

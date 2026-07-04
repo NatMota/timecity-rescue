@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { ensureSession, findStudent, incrementStudentSignal } from "@/lib/game/sessionStore";
-import { generateScene } from "@/lib/openai/generateScene";
+import { generateSceneCached, preGenerateLikelyNextScene } from "@/lib/openai/sceneCache";
 import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function GET(request: Request) {
@@ -14,7 +14,10 @@ export async function GET(request: Request) {
   }
   const session = await ensureSession(sessionCode);
   const student = studentId ? (await findStudent(session.session_code, studentId)).student : undefined;
-  const scene = student ? await generateScene(session.session_code, student.current_node_key, student.language, student) : undefined;
+  const scene = student
+    ? await generateSceneCached(session.session_code, student.current_node_key, student.language, student)
+    : undefined;
+  if (student) preGenerateLikelyNextScene(session.session_code, student);
   return NextResponse.json({ session, student, scene });
 }
 
@@ -37,7 +40,16 @@ export async function POST(request: Request) {
     readAgainCount: result.student.read_again_count,
     metadata: {
       risk_flags: result.student.risk_flags,
+      hint_counts: result.student.hint_counts,
+      world_state: result.student.world_state,
     },
   });
-  return NextResponse.json(result);
+  const scene = await generateSceneCached(
+    result.session.session_code,
+    result.student.current_node_key,
+    result.student.language,
+    result.student,
+  );
+  preGenerateLikelyNextScene(result.session.session_code, result.student);
+  return NextResponse.json({ ...result, scene });
 }

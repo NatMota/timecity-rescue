@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { submitChoice } from "@/lib/game/sessionStore";
-import { generateScene } from "@/lib/openai/generateScene";
+import { generateSceneCached, preGenerateLikelyNextScene } from "@/lib/openai/sceneCache";
 import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function POST(request: Request) {
@@ -34,9 +34,17 @@ export async function POST(request: Request) {
       completed: result.completed,
       next_node_key: result.student.current_node_key,
       risk_flags: result.student.risk_flags,
+      world_state_delta: result.evaluation.worldStateDelta,
+      world_state: result.student.world_state,
     },
   });
-  const scene = await generateScene(result.session.session_code, result.student.current_node_key, result.student.language, result.student);
+  const scene = await generateSceneCached(
+    result.session.session_code,
+    result.student.current_node_key,
+    result.student.language,
+    result.student,
+  );
+  preGenerateLikelyNextScene(result.session.session_code, result.student);
   return NextResponse.json({
     student: result.student,
     classification: result.evaluation.classification,

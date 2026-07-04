@@ -3,10 +3,11 @@
 import fs from "node:fs";
 
 const graphText = fs.readFileSync("lib/game/fixedGraph.ts", "utf8");
+const sideQuestText = fs.readFileSync("lib/game/sideQuests.ts", "utf8");
 
 const nodeKeys = [...graphText.matchAll(/node_key: "(H1_N\d+)"/g)].map((match) => match[1]);
 const roomSlugs = [...graphText.matchAll(/room_slug: "([^"]+)"/g)].map((match) => match[1]);
-const sideQuestNodes = [];
+const sideQuestNodes = [...sideQuestText.matchAll(/node_key: "(H1_N\d+)"/g)].map((match) => match[1]);
 const uniqueRooms = Array.from(new Set(roomSlugs));
 
 const pacing = {
@@ -26,7 +27,7 @@ const checks = [
     expected: "20-30",
   },
   {
-    label: "Optional side quests descoped",
+    label: "Side quests are disabled",
     pass: new Set(sideQuestNodes).size === 0,
     value: new Set(sideQuestNodes).size,
     expected: "0",

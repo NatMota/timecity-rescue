@@ -3,8 +3,8 @@ import { createSession } from "@/lib/game/sessionStore";
 import { logClickstreamEvent } from "@/lib/telemetry/server";
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
-  const session = await createSession(body.language_default === "zh" ? "zh" : "en");
+  await request.json().catch(() => ({}));
+  const session = await createSession("en");
   await logClickstreamEvent({
     sessionCode: session.session_code,
     actor: "teacher",

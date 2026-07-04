@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     code,
     String(body.display_name || "Blue Cadet"),
     String(body.avatar_color || "blue"),
-    body.language === "zh" ? "zh" : "en",
+    "en",
   );
   await logClickstreamEvent({
     sessionCode: result.session.session_code,

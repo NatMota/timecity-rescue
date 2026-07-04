@@ -1,18 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { getSideQuestForNode } from "@/lib/game/sideQuests";
+import { useRef, useState } from "react";
 import { useScenePlayback } from "./useScenePlayback";
 import type { Language, ScenePayload, StudentRecord } from "@/lib/game/types";
 
 type RuntimeText = {
   defaultClue: string;
-};
-
-type SideQuestResult = {
-  sideQuestId: string;
-  text: string;
-  correct: boolean;
 };
 
 type ExplorationQuestion = {
@@ -26,7 +19,6 @@ export function useStudentMissionRuntime({
   displayName,
   avatarColor,
   language,
-  setLanguage,
   onExit,
   text,
 }: {
@@ -34,7 +26,6 @@ export function useStudentMissionRuntime({
   displayName: string;
   avatarColor: string;
   language: Language;
-  setLanguage: (language: Language) => void;
   onExit: () => void;
   text: RuntimeText;
 }) {
@@ -47,20 +38,13 @@ export function useStudentMissionRuntime({
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [completedSideQuestIds, setCompletedSideQuestIds] = useState<string[]>([]);
-  const [sideQuestResult, setSideQuestResult] = useState<SideQuestResult | null>(null);
   const [explorationAnswer, setExplorationAnswer] = useState("");
+  const [explorationQuestionIds, setExplorationQuestionIds] = useState<string[]>([]);
   const [startedAt, setStartedAt] = useState(Date.now());
   const firstChoiceAtRef = useRef<number | null>(null);
   const supportCountsRef = useRef({ clue_count: 0, read_again_count: 0 });
 
   const playback = useScenePlayback(scene ? scene.scene_id : null);
-  const sideQuest = useMemo(() => (scene ? getSideQuestForNode(scene.node_key, language) : null), [language, scene]);
-  const activeSideQuestResult = sideQuestResult?.sideQuestId === sideQuest?.id ? sideQuestResult : null;
-  const sideQuestComplete = Boolean(
-    sideQuest && (completedSideQuestIds.includes(sideQuest.id) || student?.completed_side_quest_ids?.includes(sideQuest.id)),
-  );
-
   async function join() {
     setBusy(true);
     const response = await fetch("/api/student/join", {
@@ -70,7 +54,6 @@ export function useStudentMissionRuntime({
     });
     const data = await response.json();
     setStudent(data.student);
-    setLanguage(data.student.language);
     setScene(undefinedToNull(data.scene));
     await refreshState(data.student.id);
     setBusy(false);
@@ -85,27 +68,10 @@ export function useStudentMissionRuntime({
     resetSceneTelemetry();
   }
 
-  async function changeLanguage(nextLanguage: Language) {
-    setLanguage(nextLanguage);
-    if (!student) return;
-    setBusy(true);
-    const response = await fetch("/api/student/language", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_code: sessionCode, student_id: student.id, language: nextLanguage }),
-    });
-    const data = await response.json();
-    setStudent(data.student);
-    setScene(data.scene);
-    setSupportText("");
-    setSideQuestResult(null);
-    resetSceneTelemetry();
-    setBusy(false);
-  }
-
   function resetSceneTelemetry() {
     setStartedAt(Date.now());
     setExplorationAnswer("");
+    setExplorationQuestionIds([]);
     firstChoiceAtRef.current = null;
     supportCountsRef.current = { clue_count: 0, read_again_count: 0 };
   }
@@ -143,7 +109,6 @@ export function useStudentMissionRuntime({
     setChoiceFeedback(null);
     setSupportText("");
     setExplorationAnswer("");
-    setSideQuestResult(null);
     resetSceneTelemetry();
     if (data.completed || data.student?.memento) {
       playback.setPhase("choices");
@@ -161,7 +126,6 @@ export function useStudentMissionRuntime({
     setPendingScene(null);
     setChoiceFeedback(null);
     setExplorationAnswer("");
-    setSideQuestResult(null);
     resetSceneTelemetry();
     if (pendingStudent.memento) {
       playback.setPhase("choices");
@@ -173,6 +137,7 @@ export function useStudentMissionRuntime({
   async function askExplorationQuestion(question: ExplorationQuestion) {
     if (!scene) return;
     setExplorationAnswer(question.answer);
+    setExplorationQuestionIds((current) => (current.includes(question.id) ? current : [...current, question.id]));
     if (!student) return;
     await fetch("/api/student/event", {
       method: "POST",
@@ -198,7 +163,7 @@ export function useStudentMissionRuntime({
       ...supportCountsRef.current,
       [type]: supportCountsRef.current[type] + 1,
     };
-    await fetch("/api/student/state", {
+    const response = await fetch("/api/student/state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -210,13 +175,20 @@ export function useStudentMissionRuntime({
         scene_elapsed_ms: Date.now() - startedAt,
       }),
     });
-    setSupportText(type === "clue_count" ? scene.clue?.text || text.defaultClue : scene.dialogue.read_again_text);
-    await refreshState(student.id);
+    const data = await response.json().catch(() => ({}));
+    if (data.student) setStudent(data.student);
+    if (data.scene) setScene(data.scene);
+    const nextScene = data.scene ?? scene;
+    setSupportText(
+      type === "clue_count"
+        ? nextScene.hint_ladder?.current_hint || nextScene.clue?.text || text.defaultClue
+        : nextScene.dialogue.read_again_text,
+    );
   }
 
   async function askCharacter() {
     if (!scene) return;
-    setSupportText(scene.clue?.text || text.defaultClue);
+    setSupportText(scene.hint_ladder?.current_hint || scene.clue?.text || text.defaultClue);
     playback.replaySpeech();
     if (!student) return;
     supportCountsRef.current = {
@@ -237,40 +209,6 @@ export function useStudentMissionRuntime({
     });
   }
 
-  async function chooseSideQuest(choiceId: string) {
-    if (!student || !scene || !sideQuest || sideQuestComplete) return;
-    const choice = sideQuest.choices.find((item) => item.id === choiceId);
-    if (!choice) return;
-    const correct = choice.correct;
-    if (correct) {
-      setCompletedSideQuestIds((current) => (current.includes(sideQuest.id) ? current : [...current, sideQuest.id]));
-    }
-    setSideQuestResult({
-      sideQuestId: sideQuest.id,
-      correct,
-      text: correct ? sideQuest.success : sideQuest.retry,
-    });
-    const response = await fetch("/api/student/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_code: sessionCode,
-        student_id: student.id,
-        event_type: "side_quest_choice",
-        node_key: scene.node_key,
-        room_slug: scene.room_slug,
-        choice_id: choiceId,
-        scene_elapsed_ms: Date.now() - startedAt,
-        metadata: {
-          side_quest_id: sideQuest.id,
-          correct,
-        },
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (data.student) setStudent(data.student);
-  }
-
   function exitMission() {
     setStudent(null);
     setScene(null);
@@ -281,8 +219,6 @@ export function useStudentMissionRuntime({
     setExplorationAnswer("");
     setBackpackOpen(false);
     setMapOpen(false);
-    setCompletedSideQuestIds([]);
-    setSideQuestResult(null);
     onExit();
   }
 
@@ -329,23 +265,19 @@ export function useStudentMissionRuntime({
     choiceFeedback,
     supportText,
     explorationAnswer,
+    explorationQuestionCount: explorationQuestionIds.length,
     backpackOpen,
     mapOpen,
     busy,
     playback,
-    sideQuest,
-    sideQuestComplete,
-    sideQuestResult: activeSideQuestResult,
     setBackpackOpen,
     setMapOpen,
     join,
-    changeLanguage,
     submitChoice,
     applyPendingScene,
     signal,
     askCharacter,
     askExplorationQuestion,
-    chooseSideQuest,
     exitMission,
     restartMission,
     goBackOneStep,

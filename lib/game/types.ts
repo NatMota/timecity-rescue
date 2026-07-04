@@ -1,4 +1,4 @@
-export type Language = "en" | "zh";
+export type Language = "en";
 
 export type CharacterSlug = "ada" | "cog9" | "nix";
 
@@ -29,6 +29,54 @@ export type Choice = {
   choice_type: ChoiceType;
 };
 
+export type CargoStatus = "at_risk" | "safe" | "lost";
+
+export type WorldState = {
+  clock_offset_minutes: number;
+  trains: {
+    dispatched_unsafe: number;
+    safe_runs: number;
+  };
+  battery_pct: number;
+  cargo: {
+    medicine: CargoStatus;
+    glass: CargoStatus;
+    heavy: CargoStatus;
+  };
+  city_stability: number;
+  nix_influence: number;
+  flags: string[];
+};
+
+export type WorldStateDelta = {
+  clock_offset_minutes?: number;
+  trains?: Partial<WorldState["trains"]>;
+  battery_pct?: number;
+  cargo?: Partial<WorldState["cargo"]>;
+  city_stability?: number;
+  nix_influence?: number;
+  add_flags?: string[];
+  remove_flags?: string[];
+  event: string;
+  memory?: string;
+};
+
+export type StateSummaryMeter = {
+  id: "clock" | "stability" | "battery" | "nix" | "trains";
+  label: string;
+  value: number;
+  max: number;
+  text: string;
+  tone: "safe" | "warning" | "danger" | "neutral";
+};
+
+export type StateSummary = {
+  title: string;
+  event?: string;
+  meters: StateSummaryMeter[];
+  flags: string[];
+};
+
 export type ScenePayload = {
   scene_id: string;
   node_key: string;
@@ -50,6 +98,22 @@ export type ScenePayload = {
     available: boolean;
     text: string;
   };
+  hint_ladder?: {
+    step: number;
+    hints: string[];
+    current_hint: string;
+    speaker_name: string;
+  };
+  remediation?: {
+    active: boolean;
+    attempt: number;
+    scaffold_text: string;
+    consequence_text?: string;
+  };
+  choice_semantic_map?: Partial<Record<Choice["id"], string>>;
+  difficulty_level?: 1 | 2 | 3;
+  world_state?: WorldState;
+  state_summary?: StateSummary;
   consequence_preview?: {
     show_after_choice: boolean;
     tone: "positive" | "debug" | "warning";
@@ -119,6 +183,11 @@ export type StudentRecord = {
   fast_correct_count: number;
   difficulty_level: 1 | 2 | 3;
   retry_count: number;
+  node_attempts: Record<string, number>;
+  hint_counts: Record<string, number>;
+  world_state: WorldState;
+  character_memory: string[];
+  last_world_event?: string;
   last_choice?: string;
   last_classification?: ChoiceClassification;
   last_misconception?: string;

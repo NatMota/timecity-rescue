@@ -18,7 +18,7 @@ export function SessionControls({
       <div>
         <p className="eyebrow">Class session</p>
         <h2>Mission: TimeCity Rescue</h2>
-        <p>Episode 1 - The Missing Minute · Age band 9-10 · English / Chinese</p>
+        <p>Episode 1 - The Missing Minute · Age band 9-10 · English</p>
       </div>
       <div className="teacher-actions">
         <button type="button" className="primary-action" onClick={onCreate}>

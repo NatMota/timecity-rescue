@@ -9,6 +9,7 @@ import {
   GraduationCap,
   LogIn,
   MousePointerClick,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { getTeamDashboardData } from "@/lib/team/dashboard";
@@ -34,6 +35,17 @@ function formatMs(value: number | null | undefined) {
   if (!value) return "-";
   if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
   return `${value}ms`;
+}
+
+function formatScore(value: number | null | undefined) {
+  if (value === null || value === undefined) return "-";
+  return value.toFixed(1);
+}
+
+function formatDelta(value: unknown, suffix = "") {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  if (value === 0) return `0${suffix}`;
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}${suffix}`;
 }
 
 function MetricCard({
@@ -74,6 +86,13 @@ export default async function TeamDashboardPage() {
   const fallbackRate = data.totals.totalGenerations
     ? Math.round((data.totals.fallbackGenerations / data.totals.totalGenerations) * 100)
     : 0;
+  const evalCurrent = data.evals?.current;
+  const evalBaseline = data.evals?.baseline;
+  const teacherScore = evalCurrent?.judgeScores.teacher_syllabus;
+  const studentFunScore = evalCurrent?.judgeScores.student_fun;
+  const uxScore = evalCurrent?.judgeScores.ux_accessibility;
+  const safetyScore = evalCurrent?.judgeScores.child_safety;
+  const evalDeltas = data.evals?.deltas || {};
 
   return (
     <main className="team-shell">
@@ -139,7 +158,95 @@ export default async function TeamDashboardPage() {
           detail={`${data.totals.fastFirstChoices} fast first choices`}
           icon={<Activity size={22} />}
         />
+        <MetricCard
+          label="Persona eval"
+          value={evalCurrent ? (evalCurrent.pass ? "Pass" : "Fail") : "-"}
+          detail={
+            evalCurrent
+              ? `${evalCurrent.environment} · ${evalCurrent.totalRuns} runs · ${formatNumber(
+                  evalCurrent.generatedScenes,
+                )}/${formatNumber(evalCurrent.minGeneratedScenes)} generated · ${formatNumber(
+                  evalCurrent.generatedSceneRatio,
+                )}%/${formatNumber(evalCurrent.minGeneratedRatio)}% overall · ${formatNumber(
+                  evalCurrent.generatedEligibleRatio,
+                )}%/${formatNumber(evalCurrent.minGeneratedEligibleRatio)}% eligible · ${formatNumber(
+                  evalCurrent.langfuse?.scoreCount as number | undefined,
+                )} Langfuse scores`
+              : "No eval artifact yet"
+          }
+          icon={<ShieldCheck size={22} />}
+        />
       </section>
+
+      {evalCurrent ? (
+        <section className="team-grid eval-grid">
+          <article className="team-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Evals</p>
+                <h2>Current vs baseline</h2>
+              </div>
+            </div>
+            <div className="eval-summary-grid">
+              <div>
+                <span>Completion</span>
+                <strong>{evalCurrent.completionRate}%</strong>
+                <small>Baseline {evalBaseline ? `${evalBaseline.completionRate}%` : "-"} · Δ {formatDelta(evalDeltas.completionRate, "%")}</small>
+              </div>
+              <div>
+                <span>Wrong choices</span>
+                <strong>{formatScore(evalCurrent.averageWrong)}</strong>
+                <small>Δ {formatDelta(evalDeltas.averageWrong)}</small>
+              </div>
+              <div>
+                <span>Retries</span>
+                <strong>{formatScore(evalCurrent.averageRetries)}</strong>
+                <small>Δ {formatDelta(evalDeltas.averageRetries)}</small>
+              </div>
+              <div>
+                <span>Generated route</span>
+                <strong>{formatNumber(evalCurrent.generatedEligibleRatio)}%</strong>
+                <small>{formatNumber(evalCurrent.generatedEligibleScenes)} of {formatNumber(evalCurrent.eligibleGeneratedScenesSeen)} eligible scenes</small>
+              </div>
+            </div>
+            <p className="eval-run-note">
+              Current {evalCurrent.runId} · {formatDate(evalCurrent.generatedAt)}
+              {evalBaseline ? ` · baseline ${evalBaseline.runId}` : ""}
+            </p>
+          </article>
+
+          <article className="team-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Judge tension</p>
+                <h2>Learning vs fun</h2>
+              </div>
+            </div>
+            <div className="signal-list eval-judge-list">
+              <div>
+                <span>Teacher syllabus</span>
+                <strong>{formatScore(teacherScore?.averageScore)}</strong>
+                <small>Δ {formatDelta(evalDeltas.teacherScore)} · pass {formatNumber(teacherScore?.passRate)}%</small>
+              </div>
+              <div>
+                <span>Student fun</span>
+                <strong>{formatScore(studentFunScore?.averageScore)}</strong>
+                <small>Δ {formatDelta(evalDeltas.studentFunScore)} · tension {formatScore(studentFunScore?.averageTension)}</small>
+              </div>
+              <div>
+                <span>UX/accessibility</span>
+                <strong>{formatScore(uxScore?.averageScore)}</strong>
+                <small>Δ {formatDelta(evalDeltas.uxScore)}</small>
+              </div>
+              <div>
+                <span>Child safety</span>
+                <strong>{formatScore(safetyScore?.averageScore)}</strong>
+                <small>Δ {formatDelta(evalDeltas.safetyScore)}</small>
+              </div>
+            </div>
+          </article>
+        </section>
+      ) : null}
 
       <section className="team-grid">
         <article className="team-panel">

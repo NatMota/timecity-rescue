@@ -1,7 +1,8 @@
 import { badgeProgressForNode } from "./nextNode";
-import { evaluateChoice } from "./evaluateChoice";
 import { NODE_BY_KEY, FIRST_NODE_KEY } from "./fixedGraph";
 import { difficultyForStudent, riskFlagsForStudent } from "./adaptDifficulty";
+import { predictStudentAfterChoice } from "./predictChoice";
+import { INITIAL_WORLD_STATE, normalizeWorldState } from "./worldState";
 import { runtimeSessionCode } from "@/lib/runtime/environment";
 import type { ClassSession, Language, MissionGoalCard, StudentRecord } from "./types";
 
@@ -12,12 +13,6 @@ const BACKPACK_ITEM_LABELS: Record<string, string> = {
   prompt_card: "Prompt Card",
   agent_blueprint: "Agent Blueprint",
   safety_seal: "Safety Seal",
-};
-
-const SIDE_QUEST_LABELS: Record<string, string> = {
-  "cargo-cleanup": "Cargo Clean-up",
-  "loop-trace": "Loop Trace",
-  "telegraph-tidy": "Telegraph Tidy",
 };
 
 declare global {
@@ -65,6 +60,11 @@ function makeStudent(display_name: string, avatar_color: string, language: Langu
     fast_correct_count: display_name === "Leo" ? 2 : 0,
     difficulty_level: 2,
     retry_count: display_name === "Jay" ? 1 : 0,
+    node_attempts: {},
+    hint_counts: {},
+    world_state: INITIAL_WORLD_STATE,
+    character_memory: [],
+    last_world_event: undefined,
     last_choice: display_name === "Ava" ? "B" : undefined,
     last_classification: display_name === "Ava" ? "misconception" : undefined,
     last_misconception: display_name === "Ava" ? "speed_over_safety" : undefined,
@@ -81,6 +81,10 @@ function recompute(student: StudentRecord): StudentRecord {
     used_backpack_items: student.used_backpack_items ?? [],
     visited_room_slugs: student.visited_room_slugs ?? [student.current_room_slug],
     completed_side_quest_ids: student.completed_side_quest_ids ?? [],
+    node_attempts: student.node_attempts ?? {},
+    hint_counts: student.hint_counts ?? {},
+    world_state: normalizeWorldState(student.world_state),
+    character_memory: (student.character_memory ?? []).slice(-3),
     risk_flags: riskFlagsForStudent(student),
     difficulty_level: difficultyForStudent(student),
     updated_at: now(),
@@ -162,46 +166,15 @@ export function findStudent(sessionCodeValue: string, studentId: string) {
 export function submitChoice(sessionCodeValue: string, studentId: string, choiceId: string, responseMs = 2500) {
   const { session, student } = findStudent(sessionCodeValue, studentId);
   if (!session || !student) return null;
-  const evaluation = evaluateChoice(student.current_node_key, choiceId, student.language);
-  const correctish = evaluation.classification === "best" || evaluation.classification === "partial";
-  const nextNodeKey = evaluation.nextNodeKey;
-  const completed = nextNodeKey === "COMPLETE";
-  const currentNode = NODE_BY_KEY[student.current_node_key];
-  const usedBackpackItems = appendUnique(
-    student.used_backpack_items ?? [],
-    correctish && currentNode?.required_backpack_item ? currentNode.required_backpack_item : undefined,
-  );
-  const nextRoomSlug = completed ? "future_agent_lab" : NODE_BY_KEY[nextNodeKey]?.room_slug ?? student.current_room_slug;
+  const predicted = predictStudentAfterChoice(student, choiceId, responseMs);
   const updated: StudentRecord = recompute({
-    ...student,
-    current_node_key: completed ? "H1_N24" : nextNodeKey,
-    current_room_slug: nextRoomSlug,
-    badge_progress: completed ? 100 : badgeProgressForNode(nextNodeKey),
-    used_backpack_items: usedBackpackItems,
-    visited_room_slugs: appendUnique(student.visited_room_slugs ?? [student.current_room_slug], nextRoomSlug),
-    correct_count: student.correct_count + (correctish ? 1 : 0),
-    wrong_count: student.wrong_count + (correctish ? 0 : 1),
-    retry_count: correctish ? 0 : student.retry_count + 1,
-    fast_correct_count: correctish && responseMs < 1500 ? student.fast_correct_count + 1 : student.fast_correct_count,
-    last_choice: choiceId,
-    last_classification: evaluation.classification,
-    last_misconception: evaluation.misconception,
-    last_response_ms: responseMs,
-    memento: completed
-      ? createMissionGoalCard({
-          ...student,
-          current_node_key: "H1_N24",
-          current_room_slug: nextRoomSlug,
-          badge_progress: 100,
-          used_backpack_items: usedBackpackItems,
-          visited_room_slugs: appendUnique(student.visited_room_slugs ?? [student.current_room_slug], nextRoomSlug),
-        })
-      : student.memento,
+    ...predicted.student,
+    memento: predicted.completed ? createMissionGoalCard(predicted.student) : predicted.student.memento,
   });
   session.students = session.students.map((item) => (item.id === studentId ? updated : item));
   session.updated_at = now();
   store.set(session.session_code, session);
-  return { session, student: updated, evaluation, completed };
+  return { session, student: updated, evaluation: predicted.evaluation, completed: predicted.completed };
 }
 
 export function updateStudentLanguage(sessionCodeValue: string, studentId: string, language: Language) {
@@ -221,7 +194,17 @@ export function incrementStudentSignal(
 ) {
   const { session, student } = findStudent(sessionCodeValue, studentId);
   if (!session || !student) return null;
-  const updated = recompute({ ...student, [signal]: student[signal] + 1 });
+  const updated = recompute({
+    ...student,
+    [signal]: student[signal] + 1,
+    hint_counts:
+      signal === "clue_count"
+        ? {
+            ...(student.hint_counts ?? {}),
+            [student.current_node_key]: (student.hint_counts?.[student.current_node_key] ?? 0) + 1,
+          }
+        : student.hint_counts,
+  });
   session.students = session.students.map((item) => (item.id === studentId ? updated : item));
   store.set(session.session_code, session);
   return { session, student: updated };
@@ -230,18 +213,14 @@ export function incrementStudentSignal(
 export function recordStudentEvent(
   sessionCodeValue: string,
   studentId: string,
-  eventType: string,
-  metadata: Record<string, unknown> = {},
+  _eventType: string,
+  _metadata: Record<string, unknown>,
 ) {
+  void _eventType;
+  void _metadata;
   const { session, student } = findStudent(sessionCodeValue, studentId);
   if (!session || !student) return null;
-  let updated = student;
-  if (eventType === "side_quest_choice" && metadata.correct === true && typeof metadata.side_quest_id === "string") {
-    updated = recompute({
-      ...student,
-      completed_side_quest_ids: appendUnique(student.completed_side_quest_ids ?? [], metadata.side_quest_id),
-    });
-  }
+  const updated = student;
   session.students = session.students.map((item) => (item.id === studentId ? updated : item));
   session.updated_at = now();
   store.set(session.session_code, session);
@@ -275,7 +254,6 @@ export function createMissionGoalCard(studentOrName: StudentRecord | string): Mi
   const name = typeof studentOrName === "string" ? studentOrName : studentOrName.display_name;
   const visitedRooms = (student?.visited_room_slugs?.length ? student.visited_room_slugs : ["future_trainstation", "future_market", "future_reactorcore", "1800_trainstation", "1800_signal_telegraph_office", "future_mayorhall", "future_agent_lab"]);
   const usedItems = student?.used_backpack_items?.length ? student.used_backpack_items : ["data_slate", "debug_wrench", "prompt_card", "safety_seal", "agent_blueprint"];
-  const completedSideQuests = student?.completed_side_quest_ids ?? [];
   return {
     chronoCadetName: name,
     mission: "TimeCity Rescue",
@@ -283,7 +261,7 @@ export function createMissionGoalCard(studentOrName: StudentRecord | string): Mi
     routeTaken: visitedRooms.map(roomTitle),
     cityLocationsVisited: Array.from(new Set(visitedRooms.map(roomTitle))),
     backpackItemsUsed: usedItems.map(itemTitle),
-    sideQuestsCompleted: completedSideQuests.map(sideQuestTitle),
+    sideQuestsCompleted: [],
     fixedStatement: "I restored TimeCity's missing minute by building a Station Helper Agent that chooses safe train routes.",
     learnedStatement: "I learned that an agent needs a goal, useful inputs, rules, safety checks, and feedback.",
     cog9Goal: "Help trains choose safe routes across TimeCity.",
@@ -295,11 +273,6 @@ export function createMissionGoalCard(studentOrName: StudentRecord | string): Mi
     nextMissionTeaser: "Next signal: the 1888 Telegraph Office is sending messages out of order.",
     badgeEarned: "Agent Badge",
   };
-}
-
-function appendUnique<T>(items: T[], item: T | undefined) {
-  if (item === undefined || items.includes(item)) return items;
-  return [...items, item];
 }
 
 function roomTitle(slug: string) {
@@ -318,8 +291,4 @@ const NODE_ROOM_TITLES: Record<string, string> = {
 
 function itemTitle(slug: string) {
   return BACKPACK_ITEM_LABELS[slug] ?? slug;
-}
-
-function sideQuestTitle(id: string) {
-  return SIDE_QUEST_LABELS[id] ?? id;
 }

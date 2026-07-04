@@ -3,6 +3,7 @@
 import fs from "node:fs";
 
 const graphText = fs.readFileSync("lib/game/fixedGraph.ts", "utf8");
+const sideQuestText = fs.readFileSync("lib/game/sideQuests.ts", "utf8");
 const mementoText = fs.readFileSync("lib/memento/missionGoalCard.ts", "utf8");
 
 const nodeBlocks = graphText
@@ -12,12 +13,15 @@ const nodeBlocks = graphText
   .filter((block) => /node_key: "H1_N\d+"/.test(block));
 
 const nodeKeys = nodeBlocks.map((block) => matchOne(block, /node_key: "(H1_N\d+)"/));
+const generativeReadyNodes = nodeBlocks
+  .filter((block) => /scripted:\s*false/.test(block))
+  .map((block) => matchOne(block, /node_key: "(H1_N\d+)"/));
 const roomSequence = compact(nodeBlocks.map((block) => matchOne(block, /room_slug: "([^"]+)"/)));
 const uniqueRooms = Array.from(new Set(roomSequence));
 const concepts = compact(nodeBlocks.map((block) => matchOne(block, /curriculum_concept: "([^"]+)"/)));
 const requiredBackpackItems = [...graphText.matchAll(/required_backpack_item: "([^"]+)"/g)].map((match) => match[1]);
-const sideQuestNodes = [];
-const sideQuestIds = [];
+const sideQuestNodes = [...sideQuestText.matchAll(/node_key: "(H1_N\d+)"/g)].map((match) => match[1]);
+const sideQuestIds = [...sideQuestText.matchAll(/id: "([a-z][a-z0-9-]+)"/g)].map((match) => match[1]);
 
 const expectedRoomOrder = [
   "future_trainstation",
@@ -89,6 +93,12 @@ const checks = [
     expected: "all false",
   },
   {
+    label: "At least 12 nodes are generative-ready behind the env flag",
+    pass: generativeReadyNodes.length >= 12,
+    value: generativeReadyNodes,
+    expected: ">= 12 scripted:false nodes",
+  },
+  {
     label: "Learning concepts cover the pretotype objectives",
     pass: requiredConceptMatchers.every(([, matcher]) => concepts.some((concept) => matcher.test(concept))),
     value: concepts,
@@ -101,10 +111,10 @@ const checks = [
     expected: requiredBackpack,
   },
   {
-    label: "Optional side quests are descoped for the current demo",
+    label: "Side quests are disabled for the current prototype scope",
     pass: new Set(sideQuestNodes).size === 0 && new Set(sideQuestIds).size === 0,
     value: { nodes: Array.from(new Set(sideQuestNodes)), ids: Array.from(new Set(sideQuestIds)) },
-    expected: "0 active side quests",
+    expected: "no side quests",
   },
   {
     label: "Agent Builder Passport contains journey evidence",

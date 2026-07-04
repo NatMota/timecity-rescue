@@ -105,22 +105,21 @@ const checks = [
     label: "Navigation is route-button style, not free map roaming",
     pass:
       /student-nav-actions/.test(source.stage) &&
-      /mapSurface\.stops\.map/.test(source.stage) &&
+      /ROOM_SEQUENCE\.map/.test(source.director) &&
       !/mission\.mapSurface\.stops[\s\S]{0,220}onClick/.test(source.stage) &&
       !/draggable|canvas|pointerlock|useMapMovement/.test(source.stage + source.director),
     value: "fixed route list rendered without clickable room destinations",
     expected: "room/route buttons only; no free-roam map movement",
   },
   {
-    label: "Side quests, backpack, and memento evidence match the richer pretotype cut",
+    label: "Backpack and memento evidence stay in the scoped prototype cut",
     pass:
-      new Set([...source.sideQuests.matchAll(/node_key: "(H1_N\d+)"/g)].map((match) => match[1])).size === 3 &&
+      new Set([...source.sideQuests.matchAll(/node_key: "(H1_N\d+)"/g)].map((match) => match[1])).size === 0 &&
       /required_backpack_item/.test(source.graph) &&
       /Backpack items used/.test(source.memento) &&
-      /Side quests/.test(source.memento) &&
       /Route taken/.test(source.memento),
-    value: "3 side quests, backpack-gated nodes, route/item/side-quest passport evidence",
-    expected: "side quests, backpack, and printable evidence",
+    value: "side quests disabled, backpack-gated nodes, route/item passport evidence",
+    expected: "no side quests, backpack, and printable evidence",
   },
   {
     label: "Tone is debug-oriented and not shaming",

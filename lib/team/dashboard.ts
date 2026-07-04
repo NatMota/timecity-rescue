@@ -1,4 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
+import fs from "fs";
+import path from "path";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSandboxMode, sandboxSessionLikePattern } from "@/lib/runtime/environment";
 import type { ClassSession, StudentRecord } from "@/lib/game/types";
@@ -91,6 +93,59 @@ export type TeamRiskSummary = {
   count: number;
 };
 
+export type TeamEvalJudgeSummary = {
+  title: string;
+  averageScore: number | null;
+  averageTension: number | null;
+  passRate: number | null;
+  issues: string[];
+};
+
+export type TeamEvalRunSummary = {
+  runId: string;
+  generatedAt: string;
+  environment: string;
+  baseUrl: string;
+  seedCount: number;
+  pass: boolean;
+  mechanicsPass: boolean;
+  judgePass: boolean;
+  totalRuns: number;
+  generatedScenes?: number;
+  generatedEligibleScenes?: number;
+  eligibleGeneratedScenesSeen?: number;
+  minGeneratedScenes?: number;
+  generatedSceneRatio?: number;
+  minGeneratedRatio?: number;
+  generatedEligibleRatio?: number;
+  minGeneratedEligibleRatio?: number;
+  completionRate: number;
+  averageProgress: number;
+  averageWrong: number;
+  averageRetries: number;
+  totalSideQuests: number;
+  judgeScores: Record<string, TeamEvalJudgeSummary>;
+  tension: {
+    teacherAverage: number | null;
+    studentFunAverage: number | null;
+    gap: number | null;
+    note: string;
+  };
+  failedMechanics: Array<{ gate: string; runs: string[] }>;
+  langfuse?: JsonRecord;
+};
+
+export type TeamEvalSummary = {
+  source: string;
+  generatedAt: string;
+  current: TeamEvalRunSummary | null;
+  baseline: TeamEvalRunSummary | null;
+  deltas: JsonRecord | null;
+  personas: Array<JsonRecord>;
+  supabaseLogged?: boolean;
+  supabaseLogError?: string;
+};
+
 export type TeamDashboardData = {
   hasSupabase: boolean;
   errors: string[];
@@ -102,6 +157,7 @@ export type TeamDashboardData = {
   recentActivity: TeamActivitySummary[];
   risks: TeamRiskSummary[];
   eventCounts: Array<{ eventType: string; count: number }>;
+  evals: TeamEvalSummary | null;
   totals: {
     teacherAccounts: number;
     activeSessions: number;
@@ -150,6 +206,7 @@ const emptyDashboard: TeamDashboardData = {
   recentActivity: [],
   risks: [],
   eventCounts: [],
+  evals: null,
   totals: {
     teacherAccounts: 0,
     activeSessions: 0,
@@ -290,6 +347,45 @@ function summarizeRisks(students: StudentRecord[], clickRows: ClickstreamRow[]) 
   ].sort((a, b) => b.count - a.count);
 }
 
+function safeDate(value: string | undefined) {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isEvalSummary(value: unknown): value is TeamEvalSummary {
+  if (!value || typeof value !== "object") return false;
+  const record = value as { current?: unknown; generatedAt?: unknown; source?: unknown };
+  return typeof record.generatedAt === "string" && typeof record.source === "string" && "current" in record;
+}
+
+function readEvalArtifact() {
+  const file = path.join(process.cwd(), "artifacts", "persona-eval-latest.json");
+  try {
+    if (!fs.existsSync(file)) return null;
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    return isEvalSummary(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function readEvalSummaryFromClickstream(rows: ClickstreamRow[]) {
+  const summaries = rows
+    .filter((row) => row.event_type === "persona_eval_summary" && isEvalSummary(row.metadata))
+    .map((row) => row.metadata as TeamEvalSummary)
+    .sort((a, b) => safeDate(b.generatedAt) - safeDate(a.generatedAt));
+  return summaries[0] ?? null;
+}
+
+function readLatestEvalSummary(rows: ClickstreamRow[]) {
+  const artifact = readEvalArtifact();
+  const clickstream = readEvalSummaryFromClickstream(rows);
+  if (!artifact) return clickstream;
+  if (!clickstream) return artifact;
+  return safeDate(clickstream.generatedAt) > safeDate(artifact.generatedAt) ? clickstream : artifact;
+}
+
 export async function getTeamDashboardData(): Promise<TeamDashboardData> {
   const errors: string[] = [];
   const [users, supabase] = await Promise.all([getTeamUsers(errors), Promise.resolve(getSupabaseAdminClient())]);
@@ -345,6 +441,7 @@ export async function getTeamDashboardData(): Promise<TeamDashboardData> {
   const allStudents = snapshots.flatMap((row) => row.payload?.students ?? []);
   const sessions = summarizeSessions(snapshots);
   const models = summarizeModels(generationRows);
+  const evals = readLatestEvalSummary(clickRows);
   const eventCounts = Array.from(countBy(clickRows, (row) => row.event_type).entries())
     .map(([eventType, count]) => ({ eventType, count }))
     .sort((a, b) => b.count - a.count)
@@ -361,6 +458,7 @@ export async function getTeamDashboardData(): Promise<TeamDashboardData> {
     recentActivity: summarizeActivity(clickRows),
     risks: summarizeRisks(allStudents, clickRows),
     eventCounts,
+    evals,
     totals: {
       teacherAccounts: users.length,
       activeSessions: sessions.filter((session) => session.status === "started").length,

@@ -6,12 +6,12 @@ import { RoomBackground } from "@/components/shared/RoomBackground";
 import { SceneCharacterLayer } from "@/components/shared/SceneCharacterLayer";
 import { ChoiceButtons } from "./ChoiceButtons";
 import { ClueButton } from "./ClueButton";
-import { LanguageToggle } from "./LanguageToggle";
 import { useStudentGameDirector } from "./useStudentGameDirector";
+import type { StateSummary } from "@/lib/game/types";
 
 export function SceneStage({ initialSessionCode }: { initialSessionCode: string }) {
   const game = useStudentGameDirector({ initialSessionCode });
-  const { copy, language, mission, sessionCode, setup, start, intro } = game;
+  const { copy, mission, sessionCode, setup, start, intro } = game;
   const { student, scene } = mission;
 
   if (game.screen !== "mission" || !student || !scene) {
@@ -53,7 +53,6 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
                 <h1 id="config-title">{copy.setupTitle}</h1>
                 <p className="lead">{copy.setupLead}</p>
               </div>
-              <LanguageToggle language={language} onChange={setup.changeLanguage} />
             </div>
             <div className="join-options">
               <div>
@@ -73,7 +72,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
                   <span className="avatar-choice-frame">
                     <Image src={avatar.image} alt="" fill sizes="(max-width: 900px) 42vw, 150px" className="avatar-choice-art" />
                   </span>
-                  <strong>{avatar[language]}</strong>
+                  <strong>{avatar.label}</strong>
                 </button>
               ))}
             </div>
@@ -91,13 +90,14 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
 
         {start.showIntro ? (
           <section className="intro-scene" aria-label={copy.introTitle}>
-            <SceneCharacterLayer character="ada" state="neutral" phase={intro.characterPhase} />
+            {intro.showIncident ? <IntroIncident /> : null}
+            <SceneCharacterLayer character={intro.character} state={intro.characterState} phase={intro.characterPhase} />
             {intro.showDialogue ? (
               <div className="intro-scene-dialogue">
-                <p className="eyebrow">{copy.introSpeaker}</p>
+                <p className="eyebrow">{intro.speaker}</p>
                 <p>{intro.dialogue}</p>
                 <button type="button" className="primary-action" onClick={intro.continue}>
-                  {copy.begin}
+                  {intro.isLastBeat ? copy.begin : copy.continue}
                 </button>
               </div>
             ) : null}
@@ -123,6 +123,7 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
     <main className="student-experience">
       <RoomBackground roomSlug={scene.room_slug} />
       <div className="scene-scrim" />
+      <WorldStateHud summary={scene.state_summary} />
 
       <SceneCharacterLayer character={scene.character} state={scene.character_state} phase={mission.characterPhase} />
 
@@ -151,7 +152,12 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
             ))}
           </div>
           <p className="exploration-answer">{mission.explorationSurface.answer}</p>
-          <button type="button" className="progress-action" onClick={mission.explorationSurface.onReady}>
+          <button
+            type="button"
+            className="progress-action"
+            onClick={mission.explorationSurface.onReady}
+            disabled={mission.explorationSurface.readyDisabled}
+          >
             {mission.explorationSurface.readyLabel}
             <ArrowRight size={22} />
           </button>
@@ -172,6 +178,12 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
                 <div className="choice-question-panel">
                   <p className="eyebrow">{mission.choiceSurface.prompt.speakerName}</p>
                   <p>{mission.choiceSurface.prompt.text}</p>
+                </div>
+              ) : null}
+              {scene.remediation?.active ? (
+                <div className="remediation-panel" aria-live="polite">
+                  {scene.remediation.consequence_text ? <p>{scene.remediation.consequence_text}</p> : null}
+                  <p>{scene.remediation.scaffold_text}</p>
                 </div>
               ) : null}
               <ChoiceButtons
@@ -217,5 +229,36 @@ export function SceneStage({ initialSessionCode }: { initialSessionCode: string 
         </div>
       </footer>
     </main>
+  );
+}
+
+function WorldStateHud({ summary }: { summary?: StateSummary }) {
+  if (!summary) return null;
+  return (
+    <aside className="world-state-hud" aria-label={summary.title}>
+      <div className="world-state-meters">
+        {summary.meters.map((meter) => (
+          <div key={meter.id} className={`world-state-meter is-${meter.tone}`}>
+            <span>{meter.label}</span>
+            <strong>{meter.text}</strong>
+          </div>
+        ))}
+      </div>
+      {summary.event ? <p>{summary.event}</p> : null}
+    </aside>
+  );
+}
+
+function IntroIncident() {
+  return (
+    <div className="intro-incident" aria-hidden="true">
+      <div className="intro-clock intro-clock-left">
+        <span>08:04</span>
+      </div>
+      <div className="intro-train-streak" />
+      <div className="intro-clock intro-clock-right">
+        <span>08:05</span>
+      </div>
+    </div>
   );
 }

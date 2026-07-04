@@ -32,6 +32,7 @@ const requiredSceneStageTokens = [
   "start-fade",
   "avatar-grid",
   "intro-scene",
+  "IntroIncident",
   "useStudentGameDirector",
   "SceneCharacterLayer",
   "RoomBackground",
@@ -65,6 +66,8 @@ const requiredCssTokens = [
   ".amethyst-action",
   ".scene-character",
   ".intro-scene-dialogue",
+  ".intro-incident",
+  ".intro-train-streak",
   ".scene-dialogue-overlay",
   ".choice-grid",
   ".student-nav-actions",
@@ -75,7 +78,6 @@ const studentFiles = [
   "components/student/SceneStage.tsx",
   "components/student/ChoiceButtons.tsx",
   "components/student/ClueButton.tsx",
-  "components/student/LanguageToggle.tsx",
   "components/student/useStudentGameDirector.ts",
   "components/student/useStudentMissionRuntime.ts",
   "app/play/[sessionCode]/page.tsx",
@@ -139,6 +141,20 @@ const checks = [
     expected: "no missing director orchestration tokens",
   },
   {
+    label: "Professor-Oak intro has four authored beats and an on-screen incident",
+    pass:
+      /buildIntroBeats/.test(gameDirector) &&
+      /Welcome to TimeCity/.test(gameDirector) &&
+      /Platform 2 has 18 passengers/.test(gameDirector) &&
+      /I am Nix/.test(gameDirector) &&
+      /A train just left one minute early/.test(gameDirector) &&
+      /showIncident/.test(gameDirector) &&
+      /08:04/.test(sceneStage) &&
+      /08:05/.test(sceneStage),
+    value: "Ada welcome, COG-9 beat, Nix beat, split-clock incident",
+    expected: "4 scripted intro beats before H1_N01",
+  },
+  {
     label: "CSS includes visual layers for game look",
     pass: requiredCssTokens.every((token) => css.includes(token)),
     value: missingTokens(requiredCssTokens, css),
@@ -158,8 +174,8 @@ const checks = [
   },
   {
     label: "Player-facing language UI is descoped to English",
-    pass: /en:\s*\{/.test(gameDirector),
-    value: "English UI dictionary found",
+    pass: !new RegExp(`\\b${"z"}${"h"}\\b|LanguageToggle|changeLanguage`).test(studentSource + gameDirector),
+    value: "no secondary-language or language-switching UI found",
     expected: "English-only player UI",
   },
 ];

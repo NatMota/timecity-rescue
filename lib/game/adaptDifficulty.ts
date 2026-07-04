@@ -6,13 +6,16 @@ export function riskFlagsForStudent(student: StudentRecord): StudentRiskFlags {
     weak_why: student.last_misconception?.includes("why") || student.last_misconception === "excitement_over_reasoning",
     stuck: student.retry_count >= 2 || student.wrong_count >= 3,
     clue_heavy: student.clue_count >= 2,
-    possible_guessing: student.retry_count >= 2 && Boolean(student.last_response_ms && student.last_response_ms < 1300),
+    possible_guessing:
+      Boolean(student.last_response_ms && student.last_response_ms < 1300) &&
+      (student.retry_count >= 2 || student.wrong_count >= 2),
   };
 }
 
 export function difficultyForStudent(student: StudentRecord): 1 | 2 | 3 {
-  if (student.wrong_count >= 2 || student.read_again_count >= 3) return 1;
-  if (student.correct_count >= 4 && student.fast_correct_count < 3) return 3;
+  const fastAndWrong = Boolean(student.last_response_ms && student.last_response_ms < 1300 && student.wrong_count > 0);
+  if (!fastAndWrong && (student.wrong_count >= 2 || student.read_again_count >= 3)) return 1;
+  if (student.correct_count >= 4 && student.retry_count === 0) return 3;
   return 2;
 }
 
