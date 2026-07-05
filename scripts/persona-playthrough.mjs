@@ -144,6 +144,17 @@ const personas = [
   },
 ];
 
+const personaFilter = argValue("--personas", process.env.TIMECITY_EVAL_PERSONAS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const selectedPersonas = personaFilter.length
+  ? personas.filter((persona) => personaFilter.includes(persona.id))
+  : personas;
+if (!selectedPersonas.length) {
+  throw new Error(`No personas matched filter: ${personaFilter.join(", ")}`);
+}
+
 const roomIntroNodes = new Set(["H1_N01", "H1_N04", "H1_N07", "H1_N09", "H1_N10", "H1_N11", "H1_N13"]);
 
 const explorationQuestionsByNode = {
@@ -167,7 +178,7 @@ async function main() {
   const sdk = maybeStartLangfuse();
   try {
     const playthroughs = [];
-    for (const persona of personas) {
+    for (const persona of selectedPersonas) {
       for (let seed = 1; seed <= seedCount; seed += 1) {
         playthroughs.push({ persona, seed });
       }
@@ -704,6 +715,11 @@ function traceIdForRun() {
   return langfuseTraceId(`timecity-eval:${environment}:${runId}:summary`);
 }
 
+function primaryTraceIdForReport(report) {
+  const firstJudged = report.results?.find((result) => result.llmJudge?.judges?.length);
+  return firstJudged ? traceIdForResult(firstJudged) : traceIdForRun();
+}
+
 function traceIdForResult(result) {
   return langfuseTraceId(`timecity-eval:${environment}:${runId}:${result.persona}:seed:${result.seed}`);
 }
@@ -754,13 +770,13 @@ async function postLangfuseScores(report) {
 }
 
 function buildLangfuseScores(report) {
+  const summaryTraceId = primaryTraceIdForReport(report);
   const scores = [
     {
       name: "timecity.eval.mechanics_pass",
       value: report.mechanicsPass ? 1 : 0,
       dataType: "NUMERIC",
-      traceId: traceIdForRun(),
-      sessionId: runId,
+      traceId: summaryTraceId,
       comment: `Mechanics gates for ${environment}`,
       metadata: { environment, runId, baseUrl },
     },
@@ -768,8 +784,7 @@ function buildLangfuseScores(report) {
       name: "timecity.eval.overall_pass",
       value: report.pass ? 1 : 0,
       dataType: "NUMERIC",
-      traceId: traceIdForRun(),
-      sessionId: runId,
+      traceId: summaryTraceId,
       comment: `Overall persona eval pass for ${environment}`,
       metadata: { environment, runId, baseUrl },
     },
@@ -783,7 +798,6 @@ function buildLangfuseScores(report) {
         value: judge.result.score_1_to_5,
         dataType: "NUMERIC",
         traceId,
-        sessionId: runId,
         comment: `${judge.title}: ${result.persona} seed ${result.seed}`,
         metadata: {
           environment,
@@ -803,7 +817,6 @@ function buildLangfuseScores(report) {
         value: judge.result.story_tension_score_1_to_5,
         dataType: "NUMERIC",
         traceId,
-        sessionId: runId,
         comment: `${judge.title} story tension: ${result.persona} seed ${result.seed}`,
         metadata: {
           environment,

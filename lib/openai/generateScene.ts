@@ -117,7 +117,7 @@ export async function generateScene(
     return scene;
   }
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     const startedAt = Date.now();
     try {
       const response = await client.responses.parse({
@@ -132,7 +132,18 @@ export async function generateScene(
       const latencyMs = Date.now() - startedAt;
       const parsed = normalizeGeneratedScene(response.output_parsed ?? JSON.parse(response.output_text));
       const enriched = withServerSceneFields(parsed as ScenePayload, student);
-      const validated = validateScenePayload(enriched);
+      let validated = validateScenePayload(enriched);
+      let repaired = false;
+      if (!validated.scene && canRepairGeneratedScene(validated.errors)) {
+        const repairedScene = repairGeneratedScene(enriched);
+        const repairedValidation = validateScenePayload(repairedScene);
+        if (repairedValidation.scene) {
+          repaired = true;
+          validated = repairedValidation;
+        } else {
+          validated = { ...repairedValidation, errors: [...validated.errors, ...repairedValidation.errors] };
+        }
+      }
       if (!validated.scene) {
         debugGeneration("validation failed", { nodeKey, errors: validated.errors });
       }
@@ -150,7 +161,7 @@ export async function generateScene(
         success: Boolean(validated.scene),
         usedFallback: false,
         validationErrors: validated.errors,
-        usageDetails: summarizeOpenAIUsage(response),
+        usageDetails: { ...summarizeOpenAIUsage(response), repaired },
         scenePayload: validated.scene,
       });
       if (validated.scene) return validated.scene;
@@ -218,6 +229,7 @@ function configuredGenerativeNodeList() {
 }
 
 function withServerSceneFields(scene: ScenePayload, student: StudentRecord | null): ScenePayload {
+  const node = NODE_BY_KEY[scene.node_key] ?? NODE_BY_KEY.H1_N01;
   const difficulty = student ? difficultyForStudent(student) : scene.difficulty_level ?? 2;
   const retryAttempt = student?.node_attempts?.[scene.node_key] ?? 0;
   const fastGuessRetry = Boolean(
@@ -245,6 +257,7 @@ function withServerSceneFields(scene: ScenePayload, student: StudentRecord | nul
     ...scene,
     scene_id: safeSceneId,
     choices,
+    hint_ladder: normalizeHintLadder(scene, node),
     difficulty_level: difficulty,
     choice_semantic_map: choiceSemanticMap,
     remediation:
@@ -260,9 +273,109 @@ function withServerSceneFields(scene: ScenePayload, student: StudentRecord | nul
             consequence_text: scene.remediation?.consequence_text || student?.last_world_event,
         }
         : scene.remediation,
-    transition: scene.transition ?? NODE_BY_KEY[scene.node_key]?.fallback.transition,
+    transition: scene.transition ?? node.fallback.transition,
     world_state: student?.world_state,
     state_summary: student?.world_state ? worldStateSummary(student.world_state, student.last_world_event) : undefined,
+  };
+}
+
+function canRepairGeneratedScene(errors: string[]) {
+  return errors.every((error) =>
+    /leaks the best choice|must include at least one best-choice ID|speaker name must match|too long for the target reading level/i.test(
+      error,
+    ),
+  );
+}
+
+function repairGeneratedScene(scene: ScenePayload): ScenePayload {
+  const node = NODE_BY_KEY[scene.node_key];
+  if (!node) return scene;
+  const fallback = node.fallback;
+  const repairedChoices = ensureBestChoiceAvailable(scene);
+  return {
+    ...scene,
+    dialogue: {
+      ...scene.dialogue,
+      speaker_name: fallback.dialogue.speaker_name,
+      text: neutralDialogueForNode(scene),
+      read_again_text: "Look again at the evidence. Which option keeps the city careful before the next move?",
+    },
+    choices: repairedChoices,
+    choice_semantic_map: choiceSemanticMapForNode(
+      scene.node_key,
+      repairedChoices.map((choice) => choice.id),
+    ),
+    clue: scene.clue
+      ? {
+          ...scene.clue,
+          text: "Find the clue that stays true even when one screen is noisy.",
+        }
+      : scene.clue,
+    hint_ladder: scene.hint_ladder
+      ? {
+          ...scene.hint_ladder,
+          speaker_name: fallback.dialogue.speaker_name,
+          hints: [
+            "Notice what is known, what is missing, and what could go wrong.",
+            "A careful agent checks the limit before it acts.",
+            "Pick the option that protects the city before saving time.",
+          ],
+          current_hint: "Notice what is known, what is missing, and what could go wrong.",
+        }
+      : scene.hint_ladder,
+    remediation: scene.remediation
+      ? {
+          ...scene.remediation,
+          scaffold_text: "Slow down. Compare what changed with what stayed the same.",
+        }
+      : scene.remediation,
+  };
+}
+
+function neutralDialogueForNode(scene: ScenePayload) {
+  if (scene.room_slug.startsWith("1800_")) {
+    return "The old station is noisy and rushed. One instruction is missing a careful step. What should the team settle before the bell rings?";
+  }
+  if (scene.room_slug === "future_market") {
+    return "Crates crowd the platform, and one wrong record could send cargo the wrong way. What should the team trust next?";
+  }
+  if (scene.room_slug === "future_reactorcore") {
+    return "The power room hums louder, and the station needs a limit before another burst. What should the team check now?";
+  }
+  if (scene.room_slug === "future_mayorhall") {
+    return "The mayor wants the city moving, but speed is only one part of the rescue. What should guide the next decision?";
+  }
+  if (scene.room_slug === "future_agent_lab") {
+    return "The agent workbench lights up with a route suggestion. What guardrail should come before the next move?";
+  }
+  return "The station problem is still unfolding. One detail does not match the rest. What should the team settle before anyone acts?";
+}
+
+function ensureBestChoiceAvailable(scene: ScenePayload) {
+  const node = NODE_BY_KEY[scene.node_key];
+  if (!node) return scene.choices;
+  if (scene.choices.some((choice) => node.evaluation_key.best_choice_ids.includes(choice.id))) return scene.choices;
+  const bestChoice = node.fallback.choices.find((choice) => node.evaluation_key.best_choice_ids.includes(choice.id));
+  if (!bestChoice) return scene.choices;
+  const maxChoices = scene.difficulty_level === 3 ? 4 : scene.difficulty_level === 2 ? 3 : Math.min(3, Math.max(2, scene.choices.length));
+  const distractors = scene.choices.filter((choice) => choice.id !== bestChoice.id).slice(0, Math.max(1, maxChoices - 1));
+  return [bestChoice, ...distractors].slice(0, maxChoices);
+}
+
+function normalizeHintLadder(scene: ScenePayload, node: NonNullable<(typeof NODE_BY_KEY)[string]>): ScenePayload["hint_ladder"] {
+  const fallbackHints = [
+    "Notice what is known, what is missing, and what could go wrong.",
+    "A careful agent checks the limit before it acts.",
+    "Pick the option that protects the city before saving time.",
+  ];
+  const hints = scene.hint_ladder?.hints?.length ? scene.hint_ladder.hints.slice(0, 3) : fallbackHints;
+  while (hints.length < 3) hints.push(fallbackHints[hints.length]);
+  const step = Math.min(3, Math.max(1, Math.round(scene.hint_ladder?.step || 1)));
+  return {
+    step,
+    hints,
+    current_hint: scene.hint_ladder?.current_hint || hints[step - 1] || hints[0],
+    speaker_name: node.fallback.dialogue.speaker_name,
   };
 }
 

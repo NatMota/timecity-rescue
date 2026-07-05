@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const args = new Set(process.argv.slice(2));
 const argValue = (name, fallback) => {
   const match = process.argv.find((arg) => arg.startsWith(`${name}=`));
   return match ? match.slice(name.length + 1) : fallback;
@@ -16,6 +17,7 @@ const targetNodes = argValue(
   .map((value) => value.trim())
   .filter(Boolean);
 const maxSteps = Number(argValue("--max-steps", String(Math.max(24, targetNodes.length + 6))));
+const scaffolded = args.has("--scaffolded");
 const sessionCode = `GEN${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
 async function main() {
@@ -34,6 +36,7 @@ async function main() {
   let state = await get(`/api/student/state?session_code=${join.session.session_code}&student_id=${join.student.id}`);
   let scene = state.scene;
   const observed = [];
+  let scaffoldWrongChoices = scaffolded ? 2 : 0;
 
   for (let step = 0; step < maxSteps && scene; step += 1) {
     observed.push(sceneSummary(scene));
@@ -41,12 +44,15 @@ async function main() {
 
     const bestChoice = bestChoiceForScene(scene);
     if (!bestChoice) break;
+    const scaffoldChoice =
+      scaffoldWrongChoices > 0 ? scene.choices.find((choice) => choice.id !== bestChoice.id) ?? bestChoice : bestChoice;
+    if (scaffoldWrongChoices > 0 && scaffoldChoice.id !== bestChoice.id) scaffoldWrongChoices -= 1;
     const submitted = await post("/api/choice/submit", {
       session_code: join.session.session_code,
       student_id: student.id,
       node_key: scene.node_key,
       room_slug: scene.room_slug,
-      choice_id: bestChoice.id,
+      choice_id: scaffoldChoice.id,
       response_ms: 2400,
       scene_elapsed_ms: 2400,
       first_choice_ms: 2400,
@@ -106,6 +112,7 @@ async function main() {
     pass: checks.every((check) => check.pass),
     baseUrl,
     expectMode,
+    scaffolded,
     sessionCode: join.session?.session_code,
     targetNodes,
     observedNodeCount: observed.length,
